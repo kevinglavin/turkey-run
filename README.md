@@ -1,37 +1,42 @@
-# Turkey Run
+# Angry Turkeys
 
-Five scheming turkeys are plotting a Great Escape from Wallace's farm. Only Penny the Corgi can stop them.
+Dave, Martin, Kevin, Elliot and Bob have built forts on Wallace's farm. Load the catapult and knock them down.
 
 ## How to play
 
-- **Move Penny:** touch and drag on the farm. On a computer, use WASD or the arrow keys.
-- **Dash:** the Dash button, or Space on a computer. It uses stamina.
-- **Treats:** grab dog biscuits for points. Grab them quickly in a row for a combo.
-- **Escapes:** turkeys sneak to the orange gaps in the fence. Run close to shoo them back before they squeeze through.
-- **Feed bucket:** when Wallace calls, grab it. For 7 seconds the turkeys are scared, and touching one sends it to the pen.
-- **Hearts:** you lose one when a turkey pecks Penny or a turkey escapes. Survive the 90-second round until sunset to win.
+- **Aim:** grab the catapult, pull back, and let go. White dots show where the shot will go.
+- **Look around:** drag anywhere away from the catapult.
+- **Ammo:**
+  - Tennis ball: bouncy and quick.
+  - Pumpkin: heavy, and the only thing that really cracks stone.
+  - Water balloon: tap while it flies to split it into three.
+  - Penny: tap while she flies and she zooms forward.
+- Knock out every turkey to clear the level. Unused ammo is worth 10,000 points each.
+- Ten levels, up to three stars each. Each level unlocks when you beat the one before it.
 
-## Changing the turkeys
-
-Names, speeds, colors, and descriptions are in `src/game/config.ts` under `TURKEYS`. Most other tuning numbers (round length, Penny's speed, gaps, treats) are in the same file.
+Phones work best held sideways.
 
 ## Running it
 
 ```
 npm install
-npm run dev       # local dev server on http://localhost:3000
-npm run build     # production build into dist/
-npm run lint      # typecheck
-npm run balance   # bot plays 900 rounds and prints win rates by skill level
+npm run dev     # local dev server on http://localhost:3000
+npm run build   # production build into dist/
+npm run lint    # typecheck
+npm run solve   # bot checks every level: stable, and beatable with its ammo
 ```
 
-## Deploying
+## Making levels
 
-Netlify reads `netlify.toml`: it runs `npm run build` and publishes `dist/`.
+Levels are in `src/game/levels.ts`, built with small helpers (`frame`, `post`, `beam`, `box`, `slab`, `bale`, `hill`, `turkey`).
+After changing a level, run `npm run solve`. It reports whether the fort stands on its own, whether a bot can clear it,
+and the best score it found. Set the level's 2-star and 3-star scores to about 55% and 80% of that score.
 
 ## Code layout
 
-- `src/game/sim.ts` all game rules: Penny, turkey behavior, treats, the bucket, scoring. Plain TypeScript with no React, so it runs every frame without re-rendering the UI.
-- `src/game/store.ts` UI state (menus, HUD values, best score).
-- `src/components/game/` the 3D farm and characters (React Three Fiber).
-- `src/components/ui/Overlay.tsx` menus, HUD, Dash button, pause, and results screens.
+- `src/game/engine.ts` game rules on top of the planck (Box2D) physics engine: launching, damage, knockouts, scoring. No graphics, so the bot can run it.
+- `src/game/levels.ts` the ten levels.
+- `src/game/store.ts` menus, saved stars and best scores (stored on the device).
+- `src/components/Stage.tsx` the 3D scene: camera, catapult controls, particles. One canvas is kept for the whole session, because rebuilding it crashes phone GPUs.
+- `src/components/models.tsx` the clay-style characters, ammo and blocks.
+- `src/components/Screens.tsx` title, level select, in-game buttons, and the results card.

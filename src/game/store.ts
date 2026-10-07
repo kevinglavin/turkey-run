@@ -1,118 +1,99 @@
 import { create } from 'zustand';
-import { ROUND_SECONDS, START_HEARTS } from './config';
+import type { AmmoType, Phase } from './engine';
+import { LEVELS } from './levels';
 
-export type Status = 'menu' | 'playing' | 'paused' | 'over';
+export type Screen = 'title' | 'levels' | 'play';
 
-export interface Toast { id: number; text: string; tone: 'good' | 'bad' | 'info' }
+export interface Result { won: boolean; score: number; stars: number; newBest: boolean }
 
-export interface RoundResult {
-  won: boolean;
-  score: number;
-  finalScore: number;
-  heartsLeft: number;
-  treats: number;
-  shoos: number;
-  tags: number;
-  escapes: number;
-  caught: number;
-  newBest: boolean;
-}
+const KEY = 'angryTurkeys_progress';
+type Progress = Record<number, { stars: number; best: number }>;
 
-const readBest = () => {
-  try { return parseInt(localStorage.getItem('turkeyRun_best') || '0', 10) || 0; } catch { return 0; }
+const load = (): Progress => {
+  try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; }
+};
+const save = (p: Progress) => {
+  try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* storage blocked */ }
 };
 const readSound = () => {
-  try { return localStorage.getItem('turkeyRun_sound') !== 'off'; } catch { return true; }
+  try { return localStorage.getItem('angryTurkeys_sound') !== 'off'; } catch { return true; }
 };
 
-interface UIState {
-  status: Status;
-  roundId: number;
-  // HUD values, synced from the simulation a few times per second.
+const isTouch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+
+interface State {
+  screen: Screen;
+  levelIndex: number;
+  attempt: number; // bumps on every (re)start so the scene rebuilds
+  progress: Progress;
+  // HUD, mirrored from the engine
   score: number;
-  hearts: number;
-  timeLeft: number;
-  stamina: number;
-  powerLeft: number;
-  combo: number;
-  escaping: string[];
-  toasts: Toast[];
-  wallaceSays: string | null;
-  bestScore: number;
-  result: RoundResult | null;
+  ammo: AmmoType[];
+  phase: Phase;
+  ready: boolean;
+  turkeysLeft: number;
+  result: Result | null;
   sound: boolean;
   lowGraphics: boolean;
 
-  start: () => void;
-  pause: () => void;
-  resume: () => void;
-  toMenu: () => void;
-  finish: (r: Omit<RoundResult, 'newBest'>) => void;
-  syncHud: (h: Partial<Pick<UIState, 'score' | 'hearts' | 'timeLeft' | 'stamina' | 'powerLeft' | 'combo' | 'escaping'>>) => void;
-  toast: (text: string, tone?: Toast['tone']) => void;
-  say: (text: string) => void;
+  goTitle: () => void;
+  goLevels: () => void;
+  play: (index: number) => void;
+  restart: () => void;
+  next: () => void;
+  finish: (won: boolean, score: number, stars: number) => void;
+  sync: (h: Partial<Pick<State, 'score' | 'ammo' | 'phase' | 'ready' | 'turkeysLeft'>>) => void;
   toggleSound: () => void;
   toggleGraphics: () => void;
 }
 
-let toastId = 0;
-let sayTimer: ReturnType<typeof setTimeout> | undefined;
-
-const isTouch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
-
-export const useUI = create<UIState>((set, get) => ({
-  status: 'menu',
-  roundId: 0,
+export const useStore = create<State>((set, get) => ({
+  screen: 'title',
+  levelIndex: 0,
+  attempt: 0,
+  progress: load(),
   score: 0,
-  hearts: START_HEARTS,
-  timeLeft: ROUND_SECONDS,
-  stamina: 100,
-  powerLeft: 0,
-  combo: 0,
-  escaping: [],
-  toasts: [],
-  wallaceSays: null,
-  bestScore: readBest(),
+  ammo: [],
+  phase: 'aiming',
+  ready: false,
+  turkeysLeft: 0,
   result: null,
   sound: readSound(),
-  // Phone GPUs struggle with shadows, so they start with low graphics.
+  // Phones start without shadows; the WebGL view stays light on mobile GPUs.
   lowGraphics: isTouch,
 
-  start: () => set(s => ({
-    status: 'playing', roundId: s.roundId + 1, score: 0, hearts: START_HEARTS, timeLeft: ROUND_SECONDS,
-    stamina: 100, powerLeft: 0, combo: 0, escaping: [], toasts: [], wallaceSays: null, result: null,
-  })),
-  pause: () => { if (get().status === 'playing') set({ status: 'paused' }); },
-  resume: () => { if (get().status === 'paused') set({ status: 'playing' }); },
-  toMenu: () => set({ status: 'menu' }),
-  finish: (r) => {
-    const best = get().bestScore;
-    const newBest = r.finalScore > best;
-    if (newBest) { try { localStorage.setItem('turkeyRun_best', String(r.finalScore)); } catch { /* ignore */ } }
-    set({ status: 'over', result: { ...r, newBest }, bestScore: Math.max(best, r.finalScore) });
+  goTitle: () => set({ screen: 'title', result: null }),
+  goLevels: () => set({ screen: 'levels', result: null }),
+  play: (index) => set(s => ({ screen: 'play', levelIndex: index, attempt: s.attempt + 1, result: null, score: 0 })),
+  restart: () => set(s => ({ attempt: s.attempt + 1, result: null, score: 0 })),
+  next: () => {
+    const i = get().levelIndex + 1;
+    if (i < LEVELS.length) get().play(i); else set({ screen: 'levels', result: null });
   },
-  syncHud: (h) => {
+  finish: (won, score, stars) => {
+    const id = LEVELS[get().levelIndex].id;
+    const progress = { ...get().progress };
+    const prev = progress[id];
+    const newBest = won && (!prev || score > prev.best);
+    if (won) progress[id] = { stars: Math.max(stars, prev?.stars ?? 0), best: Math.max(score, prev?.best ?? 0) };
+    save(progress);
+    set({ progress, result: { won, score, stars, newBest } });
+  },
+  sync: (h) => {
     const s = get();
     const changed = (Object.keys(h) as (keyof typeof h)[]).some(k => {
       const a = h[k], b = s[k];
-      return Array.isArray(a) && Array.isArray(b) ? a.join('|') !== b.join('|') : a !== b;
+      return Array.isArray(a) && Array.isArray(b) ? a.join() !== b.join() : a !== b;
     });
     if (changed) set(h);
   },
-  toast: (text, tone = 'info') => {
-    const id = ++toastId;
-    set(s => ({ toasts: [...s.toasts.slice(-2), { id, text, tone }] }));
-    setTimeout(() => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })), 1800);
-  },
-  say: (text) => {
-    set({ wallaceSays: text });
-    clearTimeout(sayTimer);
-    sayTimer = setTimeout(() => set({ wallaceSays: null }), 2500);
-  },
   toggleSound: () => {
     const sound = !get().sound;
-    try { localStorage.setItem('turkeyRun_sound', sound ? 'on' : 'off'); } catch { /* ignore */ }
+    try { localStorage.setItem('angryTurkeys_sound', sound ? 'on' : 'off'); } catch { /* ignore */ }
     set({ sound });
   },
   toggleGraphics: () => set(s => ({ lowGraphics: !s.lowGraphics })),
 }));
+
+// A level is unlocked once the previous one has been beaten.
+export const isUnlocked = (progress: Progress, index: number) => index === 0 || !!progress[LEVELS[index - 1].id];

@@ -39,18 +39,39 @@ function tone(type: OscillatorType, from: number, to: number, seconds: number, v
   osc.stop(t + seconds + 0.02);
 }
 
+function noise(seconds: number, volume: number, freq: number, delay = 0) {
+  if (!enabled) return;
+  const a = ac();
+  if (!a) return;
+  const t = a.currentTime + delay;
+  const buf = a.createBuffer(1, Math.ceil(a.sampleRate * seconds), a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  const filter = a.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = freq;
+  const gain = a.createGain();
+  gain.gain.value = volume;
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(a.destination);
+  src.start(t);
+}
+
 export const sfx = {
-  treat: (combo: number) => tone('sine', 600 + combo * 120, 1200 + combo * 160, 0.12, 0.12),
-  bark: () => { tone('square', 180, 110, 0.12, 0.12); },
+  stretch: () => tone('triangle', 200, 320, 0.15, 0.05),
+  launch: () => { noise(0.25, 0.25, 1800); tone('sine', 300, 700, 0.2, 0.08); },
+  thud: (strength: number) => noise(0.12, Math.min(0.35, 0.05 + strength / 120), 400),
+  crack: () => { noise(0.18, 0.3, 2500); tone('square', 180, 80, 0.1, 0.06); },
   gobble: () => {
-    for (let i = 0; i < 4; i++) tone('sawtooth', 420 - i * 30, 260, 0.07, 0.07, i * 0.07);
+    for (let i = 0; i < 5; i++) tone('sawtooth', 460 - i * 25, 280, 0.06, 0.08, i * 0.06);
   },
-  ouch: () => tone('triangle', 500, 120, 0.35, 0.2),
-  shoo: () => { tone('square', 220, 160, 0.08, 0.1); tone('square', 220, 160, 0.08, 0.1, 0.1); },
-  tag: () => tone('sine', 900, 300, 0.2, 0.15),
-  puff: () => tone('sawtooth', 120, 60, 0.5, 0.12),
-  power: () => { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.12, 0.12, i * 0.08)); },
-  bucket: () => tone('triangle', 880, 880, 0.15, 0.1),
+  poof: () => noise(0.3, 0.2, 900),
+  bark: () => { tone('square', 200, 120, 0.1, 0.14); tone('square', 220, 130, 0.1, 0.12, 0.13); },
+  splash: () => noise(0.35, 0.3, 3000),
   win: () => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone('triangle', f, f, 0.18, 0.14, i * 0.12)); },
   lose: () => { [392, 330, 262, 196].forEach((f, i) => tone('triangle', f, f * 0.98, 0.25, 0.14, i * 0.2)); },
+  click: () => tone('sine', 660, 880, 0.06, 0.08),
 };
