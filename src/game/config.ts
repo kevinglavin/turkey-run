@@ -69,11 +69,11 @@ export interface TurkeyDef {
   blurb: string;
 }
 
-// Rename these to match the real turkeys.
+// The real turkeys. Swap names between lines to change who gets which personality.
 export const TURKEYS: TurkeyDef[] = [
-  { id: 't1', name: 'Big Tom', personality: 'boss', speed: 3.2, color: '#5b3a24', blurb: 'Slow, but puffs up and stuns Penny if she gets too close.' },
-  { id: 't2', name: 'Rocket', personality: 'charger', speed: 4.0, color: '#7a4a2a', blurb: 'Charges straight at Penny in sudden bursts.' },
-  { id: 't3', name: 'Sly', personality: 'sneaky', speed: 4.1, color: '#4a3b30', blurb: 'Cuts Penny off by running to where she is going.' },
-  { id: 't4', name: 'Houdini', personality: 'escaper', speed: 4.0, color: '#8a6a4a', blurb: 'Ignores Penny and goes for the fence gaps.' },
-  { id: 't5', name: 'Noodle', personality: 'scatter', speed: 3.9, color: '#6b5444', blurb: 'Wanders randomly, then chases when Penny is near.' },
+  { id: 't1', name: 'Dave', personality: 'boss', speed: 3.2, color: '#5b3a24', blurb: 'Slow, but puffs up and stuns Penny if she gets too close.' },
+  { id: 't2', name: 'Martin', personality: 'charger', speed: 4.0, color: '#7a4a2a', blurb: 'Charges straight at Penny in sudden bursts.' },
+  { id: 't3', name: 'Kevin', personality: 'sneaky', speed: 4.1, color: '#4a3b30', blurb: 'Cuts Penny off by running to where she is going.' },
+  { id: 't4', name: 'Elliot', personality: 'escaper', speed: 4.0, color: '#8a6a4a', blurb: 'Ignores Penny and goes for the fence gaps.' },
+  { id: 't5', name: 'Bob', personality: 'scatter', speed: 3.9, color: '#6b5444', blurb: 'Wanders randomly, then chases when Penny is near.' },
 ];
