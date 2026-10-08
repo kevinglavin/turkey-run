@@ -6,14 +6,14 @@ import { AMMO, GRAVITY, Game, MAX_PULL, SLING, type Ent } from '../game/engine';
 import { LEVELS } from '../game/levels';
 import { useStore } from '../game/store';
 import { sfx } from '../game/audio';
-import { AmmoModel, BlockModel, CatapultModel, PennyModel, PRONG_BACK, PRONG_FRONT, TurkeyModel, WallaceModel } from './models';
+import { AmmoModel, BlockModel, CatapultModel, CowModel, DonkeyModel, PennyModel, PRONG_BACK, PRONG_FRONT, RangerModel, SlothModel, TurkeyModel, WallaceModel } from './models';
 
 // The current game, so the HUD can read it (for example to know whether Penny is next).
 export const live: { game: Game | null } = { game: null };
 // Wallace cheers until this clock time (set when a turkey is knocked out).
 const crewState = { cheerUntil: 0 };
 
-const LEFT_EDGE = -7; // leftmost world x the camera shows
+const LEFT_EDGE = -8.6; // leftmost world x the camera shows (room for Ranger)
 
 // ---------- Particles (feathers, splinters, splashes) ----------
 
@@ -171,6 +171,8 @@ function EntView({ ent, game, labels }: { ent: Ent; game: Game; labels: boolean 
   const inner = useRef<Group>(null);
   const [hurt, setHurt] = useState(false);
   const [health, setHealth] = useState(1);
+  const [pose, setPose] = useState('');
+  const legs = useRef<Group>(null);
 
   useFrame(() => {
     if (ent.dead || !outer.current || !inner.current) return;
@@ -182,6 +184,20 @@ function EntView({ ent, game, labels }: { ent: Ent; game: Game; labels: boolean 
       if (Math.hypot(v.x, v.y) > 1) inner.current.rotation.z = Math.atan2(v.y, v.x);
     } else {
       inner.current.rotation.z = ent.body.getAngle();
+    }
+    if (ent.kind === 'helper') {
+      inner.current.rotation.z = 0;
+      inner.current.scale.x = ent.facing ?? 1;
+      const p2 = `${ent.act}`;
+      if (p2 !== pose) setPose(p2);
+      // Trot: bob up and down while moving.
+      const moving = ent.act === 'run' || ent.act === 'leave';
+      inner.current.position.y = moving ? Math.abs(Math.sin(game.time * 12)) * 0.08 : 0;
+    }
+    if (ent.ammo === 'sloth') {
+      const yawning = ent.grabbedAt !== undefined && game.time - ent.grabbedAt > 1.0 && game.time - ent.grabbedAt < 2.6;
+      const p2 = `${ent.grabbedAt !== undefined ? 'grab' : ''}${yawning ? 'yawn' : ''}`;
+      if (p2 !== pose) setPose(p2);
     }
     if (ent.kind === 'turkey') {
       const h = game.time - ent.hurtAt < 0.8;
@@ -202,7 +218,15 @@ function EntView({ ent, game, labels }: { ent: Ent; game: Game; labels: boolean 
             <TurkeyModel hurt={hurt} boss={ent.boss} />
           </group>
         )}
-        {ent.kind === 'shot' && <AmmoModel type={ent.ammo!} r={ent.r} />}
+        {ent.kind === 'shot' && ent.ammo === 'sloth' && (
+          <group scale={ent.r / 0.5}><SlothModel grabbing={pose.includes('grab')} yawning={pose.includes('yawn')} /></group>
+        )}
+        {ent.kind === 'shot' && ent.ammo !== 'sloth' && <AmmoModel type={ent.ammo!} r={ent.r} />}
+        {ent.kind === 'helper' && (
+          <group ref={legs} position={[0, -ent.h / 2, 0]}>
+            <HelperLegs ent={ent} game={game} pose={pose} />
+          </group>
+        )}
       </group>
       {ent.kind === 'turkey' && labels && (
         <Html position={[0, ent.r + 0.95 * (ent.r / 0.5), 0]} center wrapperClass="pointer-events-none" zIndexRange={[10, 0]}>
@@ -303,6 +327,7 @@ function Crew({ game }: { game: Game }) {
       <group position={[-3.2, 0, -0.4]}>
         <WallaceModel cheer={state.cheer} />
       </group>
+      <Ranger />
       {!state.pennyBusy && (
         <group ref={penny} position={[-1.7, 0.5, 0.6]}>
           <PennyModel />
@@ -315,6 +340,45 @@ function Crew({ game }: { game: Game }) {
       ))}
     </group>
   );
+}
+
+// Ranger the Pyrenees: lies about, and every so often rolls onto his back for a bit.
+function Ranger() {
+  const [belly, setBelly] = useState(0);
+  const roll = useRef({ next: 6 + Math.random() * 6, phase: 0 });
+  useFrame((s) => {
+    const t = s.clock.elapsedTime;
+    const r = roll.current;
+    let target = 0;
+    if (t > r.next) {
+      const into = t - r.next;
+      target = into < 0.6 ? into / 0.6 : into < 3 ? 1 : into < 3.6 ? 1 - (into - 3) / 0.6 : 0;
+      if (into >= 3.6) r.next = t + 8 + Math.random() * 8;
+    }
+    if (Math.abs(target - belly) > 0.04) setBelly(target);
+  });
+  return (
+    <group position={[-7.2, 0, -1.4]}>
+      <RangerModel belly={belly} />
+      {belly > 0.5 && (
+        <Html position={[0.4, 2.1, 0]} center wrapperClass="pointer-events-none" zIndexRange={[5, 0]}>
+          <div className="text-xs font-black text-white [text-shadow:0_1px_3px_#000] whitespace-nowrap">belly rub?</div>
+        </Html>
+      )}
+    </group>
+  );
+}
+
+// Donkey and cow bodies, with trotting legs and the donkey's kick pose.
+function HelperLegs({ ent, game, pose }: { ent: Ent; game: Game; pose: string }) {
+  const [step, setStep] = useState(0);
+  useFrame(() => {
+    const moving = ent.act === 'run' || ent.act === 'leave';
+    const s = moving ? Math.round(game.time * 12 * 4) / 4 : 0;
+    if (s !== step) setStep(s);
+  });
+  if (ent.helper === 'cow') return <CowModel step={step} />;
+  return <DonkeyModel step={step} kick={pose === 'kick'} />;
 }
 
 interface Popup { id: number; x: number; y: number; text: string; color: string }
@@ -428,6 +492,28 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
           pops.push({ id: ++popupId.current, x: e.x, y: e.y + 0.6, text: `${e.name}! +${e.points}`, color: '#ffffff' });
           break;
         case 'turnEnd': cam.current.returnAt = state.clock.elapsedTime + 0.9; break;
+        case 'helper':
+          cam.current.mode = 'follow'; cam.current.pan = 0;
+          if (e.helper === 'donkey') sfx.heehaw();
+          break;
+        case 'moo':
+          sfx.moo();
+          pops.push({ id: ++popupId.current, x: 0, y: 3.2, text: 'MOOOOO!', color: '#fecaca' });
+          break;
+        case 'kick':
+          sfx.kick(); sfx.heehaw();
+          burst(e.x, e.y, ['#c2a27a', '#a08060'], 22, 6, 0.3);
+          pops.push({ id: ++popupId.current, x: e.x, y: e.y + 2.2, text: 'BUCK!', color: '#fde68a' });
+          break;
+        case 'grab':
+          sfx.grab();
+          pops.push({ id: ++popupId.current, x: e.x, y: e.y + 1, text: 'Gotcha.', color: '#e7e5e4' });
+          break;
+        case 'yawn':
+          sfx.yawn();
+          burst(e.x, e.y + 0.5, ['#dbeafe', '#bfdbfe', '#ffffff'], 30, 3, 0.35);
+          pops.push({ id: ++popupId.current, x: e.x, y: e.y + 1.4, text: 'Yaaaawn... Zzz', color: '#bfdbfe' });
+          break;
         case 'end':
           if (!ended.current) {
             ended.current = true;
@@ -445,7 +531,7 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
     }
 
     if (game.version !== version) setVersion(game.version);
-    if (interactive) store.sync({ score: game.score, ammo: [...game.ammo], phase: game.phase, ready: game.ready, turkeysLeft: game.turkeysLeft });
+    if (interactive) store.sync({ score: game.score, ammo: [...game.ammo], phase: game.phase, ready: game.ready, turkeysLeft: game.turkeysLeft, helperUsed: game.helperUsed });
 
     // ---- camera ----
     const c = camera as OrthographicCamera;
@@ -460,6 +546,7 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
     let target = minX;
     if (!interactive) target = (minX + maxX) / 2;
     else if (t < k.introUntil) target = maxX; // show the fort first, then pan back
+    else if (k.mode === 'follow' && game.activeHelper && !game.activeHelper.dead) target = game.activeHelper.body.getPosition().x + W * 0.15;
     else if (k.mode === 'follow' && game.activeShot && !game.activeShot.dead) target = game.activeShot.body.getPosition().x + W * 0.1;
     else if (k.mode === 'follow' && t < k.returnAt) target = k.x;
     else { k.mode = 'aim'; target = minX + k.pan; }

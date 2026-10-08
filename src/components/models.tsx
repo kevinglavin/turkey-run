@@ -59,60 +59,66 @@ function Teeth({ p, w, n, h = 0.07 }: { p: V3; w: number; n: number; h?: number 
   );
 }
 
-// ---------- Turkey ----------
+// ---------- Turkey (white broad-breasted, like the real ones) ----------
 
-const FAN = ['#6b3f1f', '#a4642c', '#6b3f1f', '#a4642c', '#6b3f1f', '#a4642c', '#6b3f1f'];
+const FEATHER = '#f7f4ee';
+const FEATHER_SHADE = '#e4ded3';
+const HEAD = '#e2788a';
+const RED = '#d4202f';
 
 export function TurkeyModel({ hurt = false, boss = false }: { hurt?: boolean; boss?: boolean }) {
   // Built for a body radius of 0.5, facing left (toward the catapult).
   return (
     <group>
-      {/* Tail fan, behind the body */}
-      <group position={[0.22, 0.12, -0.25]}>
-        {FAN.map((c, i) => {
-          const a = ((i - 3) / 3) * 1.05;
+      {/* White tail fan, behind the body */}
+      <group position={[0.25, 0.1, -0.28]}>
+        {[0, 1, 2, 3, 4, 5, 6].map(i => {
+          const a = ((i - 3) / 3) * 1.1;
           return (
             <group key={i} rotation={[0, 0, -a]}>
-              <Pill p={[0, 0.42, 0]} r={0.11} len={0.5} c={c} />
-              <Ball p={[0, 0.78, 0]} r={0.1} c="#f3e7cf" />
+              <Pill p={[0, 0.4, 0]} r={0.12} len={0.48} c={i % 2 ? FEATHER : FEATHER_SHADE} />
             </group>
           );
         })}
       </group>
-      {/* Legs */}
-      <Pill p={[-0.1, -0.38, 0.12]} r={0.05} len={0.2} c="#e08a2c" />
-      <Pill p={[0.1, -0.38, -0.08]} r={0.05} len={0.2} c="#e08a2c" />
-      <Ball p={[-0.15, -0.5, 0.12]} r={0.08} c="#e08a2c" s={[1.6, 0.5, 1]} />
-      <Ball p={[0.05, -0.5, -0.08]} r={0.08} c="#e08a2c" s={[1.6, 0.5, 1]} />
-      {/* Plump body and lighter chest */}
-      <Ball p={[0.02, -0.02, 0]} r={0.42} c={boss ? '#4a2a14' : '#5c3519'} s={[1.12, 1, 0.95]} />
-      <Ball p={[-0.2, 0.0, 0.18]} r={0.26} c="#8a5a32" s={[1, 1.15, 0.9]} />
-      {/* Wing */}
-      <Ball p={[0.08, 0.0, 0.33]} r={0.22} c="#3f2410" s={[1.3, 0.8, 0.5]} />
-      {/* Neck and head */}
-      <Pill p={[-0.26, 0.38, 0.05]} r={0.11} len={0.22} c="#c8b6b0" rot={[0, 0, 0.35]} />
-      <Ball p={[-0.36, 0.62, 0.06]} r={0.23} c="#a9c0dc" />
-      {/* Big googly eyes and angry brows */}
-      <Eye p={[-0.45, 0.72, 0.2]} r={0.085} squint={hurt} />
-      <Eye p={[-0.3, 0.73, 0.24]} r={0.085} squint={hurt} />
-      <mesh position={[-0.45, 0.83, 0.27]} rotation={[0, 0, -0.45]}>
+      {/* Pinkish legs */}
+      <Pill p={[-0.1, -0.38, 0.12]} r={0.05} len={0.2} c="#e9b4a8" />
+      <Pill p={[0.1, -0.38, -0.08]} r={0.05} len={0.2} c="#e9b4a8" />
+      <Ball p={[-0.15, -0.5, 0.12]} r={0.08} c="#e9b4a8" s={[1.6, 0.5, 1]} />
+      <Ball p={[0.05, -0.5, -0.08]} r={0.08} c="#e9b4a8" s={[1.6, 0.5, 1]} />
+      {/* Big fluffy white body, puffed-out chest, wing */}
+      <Ball p={[0.04, -0.02, 0]} r={0.44} c={FEATHER} s={[1.12, 1, 0.95]} />
+      <Ball p={[-0.22, 0.04, 0.12]} r={0.3} c={FEATHER} s={[1, 1.1, 0.9]} />
+      <Ball p={[0.1, -0.02, 0.34]} r={0.24} c={FEATHER_SHADE} s={[1.4, 0.8, 0.45]} />
+      <Ball p={[0.24, -0.2, 0.3]} r={0.12} c={FEATHER_SHADE} s={[1.6, 0.5, 0.5]} />
+      {/* Bare neck with red wattles down the front */}
+      <Pill p={[-0.28, 0.4, 0.05]} r={0.11} len={0.22} c={HEAD} rot={[0, 0, 0.3]} />
+      {[[-0.38, 0.42], [-0.35, 0.33], [-0.4, 0.5]].map(([x, y], i) => (
+        <Ball key={i} p={[x, y, 0.13]} r={0.065} c={RED} />
+      ))}
+      {/* Bare pink-red head */}
+      <Ball p={[-0.36, 0.64, 0.06]} r={0.22} c={HEAD} s={[1, 1.05, 1]} />
+      <Ball p={[-0.3, 0.74, 0.05]} r={0.12} c="#c9b3cf" />
+      {/* Googly eyes and angry brows */}
+      <Eye p={[-0.46, 0.72, 0.2]} r={0.08} squint={hurt} />
+      <Eye p={[-0.31, 0.73, 0.24]} r={0.08} squint={hurt} />
+      <mesh position={[-0.46, 0.83, 0.27]} rotation={[0, 0, -0.45]}>
         <boxGeometry args={[0.14, 0.035, 0.03]} />
         <meshStandardMaterial color="#1c1917" />
       </mesh>
-      <mesh position={[-0.3, 0.84, 0.3]} rotation={[0, 0, 0.45]}>
+      <mesh position={[-0.31, 0.84, 0.3]} rotation={[0, 0, 0.45]}>
         <boxGeometry args={[0.14, 0.035, 0.03]} />
         <meshStandardMaterial color="#1c1917" />
       </mesh>
-      {/* Wide beak with a toothy grin */}
-      <Ball p={[-0.52, 0.57, 0.12]} r={0.13} c="#f2b232" s={[1.2, 0.55, 1]} />
-      <Ball p={[-0.5, 0.49, 0.12]} r={0.12} c="#d9951f" s={[1.15, 0.45, 1]} />
-      <Teeth p={[-0.53, 0.53, 0.24]} w={0.18} n={4} h={0.05} />
-      {/* Snood over the beak and wattle under the chin */}
-      <Pill p={[-0.58, 0.66, 0.16]} r={0.035} len={0.16} c="#d8262c" rot={[0, 0, -0.5]} />
-      <Ball p={[-0.36, 0.4, 0.12]} r={0.08} c="#d8262c" s={[1, 1.4, 1]} />
+      {/* Pale beak with a toothy grin */}
+      <Ball p={[-0.53, 0.6, 0.12]} r={0.11} c="#efe2c4" s={[1.3, 0.55, 1]} />
+      <Ball p={[-0.5, 0.53, 0.12]} r={0.1} c="#d9c9a6" s={[1.2, 0.45, 1]} />
+      <Teeth p={[-0.53, 0.565, 0.22]} w={0.16} n={4} h={0.045} />
+      {/* Long red snood dangling over the beak */}
+      <Pill p={[-0.6, 0.6, 0.17]} r={0.04} len={0.22} c={RED} rot={[0, 0, -0.25]} />
       {boss && (
         // Dave's little crown
-        <group position={[-0.34, 0.86, 0.06]}>
+        <group position={[-0.34, 0.87, 0.06]}>
           <mesh>
             <cylinderGeometry args={[0.13, 0.15, 0.1, 8]} />
             <meshStandardMaterial color="#facc15" metalness={0.4} roughness={0.3} />
@@ -129,47 +135,221 @@ export function TurkeyModel({ hurt = false, boss = false }: { hurt?: boolean; bo
   );
 }
 
-// ---------- Penny the Corgi ----------
+// ---------- Penny (red Pembroke corgi) ----------
+
+const PENNY_RED = '#c8722c';
+const PENNY_DARK = '#9a5320';
+const CREAM = '#fff7ec';
 
 export function PennyModel({ flying = false, wag = 0 }: { flying?: boolean; wag?: number }) {
   // Faces right, sized to fit a radius of about 0.5.
-  const fur = '#d98a3d';
   return (
     <group>
-      {/* Stubby legs */}
+      {/* Short white legs */}
       {[[-0.22, 0.1], [-0.1, -0.1], [0.2, 0.1], [0.3, -0.1]].map(([x, z], i) => (
-        <Pill key={i} p={[x, flying ? -0.22 : -0.3, z]} r={0.07} len={0.08} c="#fff4e6" rot={flying ? [0, 0, (i < 2 ? -1 : 1) * 1.1] : undefined} />
+        <Pill key={i} p={[x, flying ? -0.22 : -0.3, z]} r={0.075} len={0.08} c={CREAM} rot={flying ? [0, 0, (i < 2 ? -1 : 1) * 1.1] : undefined} />
       ))}
-      {/* Long loaf body with a white chest */}
-      <Pill p={[0, -0.05, 0]} r={0.25} len={0.4} c={fur} rot={[0, 0, Math.PI / 2]} />
-      <Ball p={[0.18, -0.12, 0.12]} r={0.2} c="#fff4e6" s={[1.2, 0.9, 1]} />
-      {/* Nub tail */}
-      <Ball p={[-0.46, 0.05, 0]} r={0.08} c={fur} />
+      {/* Long loaf body, white chest and fluffy white ruff */}
+      <Pill p={[0, -0.05, 0]} r={0.26} len={0.42} c={PENNY_RED} rot={[0, 0, Math.PI / 2]} />
+      <Ball p={[0.2, -0.1, 0.1]} r={0.22} c={CREAM} s={[1.1, 1.1, 1]} />
+      <Ball p={[0.28, 0.08, 0.06]} r={0.2} c={CREAM} s={[0.9, 1, 1]} />
+      <Ball p={[-0.48, 0.02, 0]} r={0.09} c={PENNY_RED} />
       {/* Head */}
-      <group position={[0.38, 0.2, 0]} rotation={[0, 0, flying ? -0.2 : wag * 0.1]}>
-        <Ball p={[0, 0, 0]} r={0.24} c={fur} />
-        <Ball p={[0.16, -0.06, 0.04]} r={0.13} c="#fff4e6" s={[1.3, 0.8, 1]} />
-        <Ball p={[0.31, -0.03, 0.05]} r={0.045} c="#1c1917" />
-        <Eye p={[0.1, 0.07, 0.19]} r={0.055} look={[1, 0]} />
-        <Eye p={[0.17, 0.08, 0.1]} r={0.05} look={[1, 0]} />
-        {/* Huge corgi ears */}
-        <mesh position={[-0.06, 0.3, 0.1]} rotation={[0.15, 0, 0.25]} castShadow>
-          <coneGeometry args={[0.1, 0.3, 10]} />
-          <Clay color={fur} />
-        </mesh>
-        <mesh position={[0.08, 0.3, -0.08]} rotation={[-0.15, 0, -0.15]} castShadow>
-          <coneGeometry args={[0.1, 0.3, 10]} />
-          <Clay color={fur} />
-        </mesh>
+      <group position={[0.4, 0.26, 0]} rotation={[0, 0, flying ? -0.2 : wag * 0.1]}>
+        <Ball p={[0, 0, 0]} r={0.23} c={PENNY_RED} />
+        {/* Muzzle: white with a greyish tip, black nose */}
+        <Ball p={[0.17, -0.07, 0.03]} r={0.12} c={CREAM} s={[1.35, 0.8, 1]} />
+        <Ball p={[0.31, -0.03, 0.04]} r={0.05} c="#111111" />
+        {/* Tongue out, of course */}
+        <Pill p={[0.2, -0.2, 0.08]} r={0.045} len={0.12} c="#d8708a" rot={[0, 0, -0.15]} />
+        <Eye p={[0.11, 0.06, 0.18]} r={0.05} look={[1, 0.2]} />
+        <Eye p={[0.17, 0.07, 0.08]} r={0.045} look={[1, 0.2]} />
+        {/* Big upright pointed ears with darker edges */}
+        {[[-0.08, 0.1, 0.25], [0.06, -0.1, -0.2]].map(([x, z, tilt], i) => (
+          <group key={i} position={[x, 0.3, z]} rotation={[0, 0, tilt]}>
+            <mesh castShadow>
+              <coneGeometry args={[0.12, 0.36, 12]} />
+              <Clay color={PENNY_DARK} />
+            </mesh>
+            <mesh position={[0.02, -0.02, 0]} scale={[0.6, 0.8, 0.6]}>
+              <coneGeometry args={[0.12, 0.36, 12]} />
+              <Clay color="#e9b08a" />
+            </mesh>
+          </group>
+        ))}
         {flying && (
           // Aviator cap and goggles
           <group>
-            <Ball p={[-0.02, 0.1, 0]} r={0.25} c="#6b3f1f" s={[1, 0.6, 1]} />
+            <Ball p={[-0.02, 0.11, 0]} r={0.24} c="#6b3f1f" s={[1, 0.55, 1]} />
             <mesh position={[0.08, 0.1, 0.13]} rotation={[0, 0.4, 0]}>
               <torusGeometry args={[0.06, 0.02, 8, 16]} />
               <meshStandardMaterial color="#94a3b8" metalness={0.5} roughness={0.3} />
             </mesh>
           </group>
+        )}
+      </group>
+    </group>
+  );
+}
+
+// ---------- Ranger (great white Pyrenees, mostly lying down) ----------
+
+const RANGER = '#f3efe6';
+const RANGER_SHADE = '#e2dbcd';
+
+export function RangerModel({ belly = 0 }: { belly?: number }) {
+  // Lying down, facing right. belly 0..1 rolls him onto his back.
+  return (
+    <group rotation={[belly * Math.PI * 0.9, 0, 0]} position={[0, 0.55 + belly * 0.1, 0]}>
+      {/* Big fluffy body */}
+      <Pill p={[0, 0, 0]} r={0.55} len={1.1} c={RANGER} rot={[0, 0, Math.PI / 2]} />
+      <Ball p={[-0.2, 0.2, 0.3]} r={0.45} c={RANGER_SHADE} s={[1.4, 0.8, 0.6]} />
+      {/* Plumed tail */}
+      <Pill p={[-1.15, -0.25, 0.1]} r={0.2} len={0.5} c={RANGER} rot={[0.4, 0, 1.2]} />
+      {/* Front paws stretched out */}
+      <Pill p={[0.95, -0.38, 0.3]} r={0.14} len={0.55} c={RANGER} rot={[0, 0, Math.PI / 2]} />
+      <Pill p={[0.95, -0.38, -0.2]} r={0.14} len={0.55} c={RANGER} rot={[0, 0, Math.PI / 2]} />
+      {/* Back legs (point up when he rolls over) */}
+      <Pill p={[-0.6, -0.4, 0.35]} r={0.16} len={0.35} c={RANGER_SHADE} rot={[0, 0, 1.3]} />
+      {/* Head resting on the paws */}
+      <group position={[0.85, 0.12, 0.05]}>
+        <Ball p={[0, 0, 0]} r={0.36} c={RANGER} s={[1.1, 1, 1]} />
+        <Ball p={[0.3, -0.1, 0]} r={0.2} c={RANGER} s={[1.3, 0.85, 1]} />
+        <Ball p={[0.53, -0.07, 0.02]} r={0.07} c="#1c1917" />
+        {/* Sleepy half-closed eyes */}
+        <Eye p={[0.22, 0.1, 0.27]} r={0.06} look={[1, -0.2]} squint />
+        <Eye p={[0.28, 0.1, 0.1]} r={0.055} look={[1, -0.2]} squint />
+        {/* Floppy ears */}
+        <Ball p={[-0.1, 0.0, 0.33]} r={0.17} c={RANGER_SHADE} s={[0.7, 1.3, 0.4]} />
+        <Ball p={[-0.1, 0.0, -0.33]} r={0.17} c={RANGER_SHADE} s={[0.7, 1.3, 0.4]} />
+      </group>
+    </group>
+  );
+}
+
+// ---------- Farm helpers ----------
+
+export function DonkeyModel({ step = 0, kick = false }: { step?: number; kick?: boolean }) {
+  // Faces right. Turned a little toward the camera so the ears show.
+  const coat = '#4a3a33';
+  const leg = (x: number, z: number, phase: number, back: boolean) => {
+    const swing = kick && back ? -1.3 : Math.sin(step + phase) * 0.5;
+    return (
+      <group key={`${x}${z}`} position={[x, 0.85, z]} rotation={[0, 0, swing]}>
+        <Pill p={[0, -0.4, 0]} r={0.08} len={0.55} c={coat} />
+        <Ball p={[0, -0.78, 0]} r={0.08} c="#1c1917" />
+      </group>
+    );
+  };
+  return (
+    <group rotation={[0, -0.35, 0]}>
+      {leg(0.45, 0.2, 0, false)}
+      {leg(0.45, -0.2, Math.PI, false)}
+      {leg(-0.45, 0.2, Math.PI, true)}
+      {leg(-0.45, -0.2, 0, true)}
+      <Pill p={[0, 1.05, 0]} r={0.36} len={0.75} c={coat} rot={[0, 0, Math.PI / 2 + (kick ? -0.35 : 0)]} />
+      <Ball p={[0, 0.85, 0]} r={0.28} c="#6b5a50" s={[1.6, 0.6, 1]} />
+      {/* Neck, head, pale muzzle */}
+      <Pill p={[0.62, 1.45, 0]} r={0.16} len={0.4} c={coat} rot={[0, 0, -0.7]} />
+      <group position={[0.9, 1.7, 0]} rotation={[0, 0, -0.5]}>
+        <Pill p={[0.15, 0, 0]} r={0.17} len={0.35} c={coat} rot={[0, 0, Math.PI / 2]} />
+        <Ball p={[0.42, -0.02, 0]} r={0.18} c="#d9cfc4" s={[1, 0.95, 1]} />
+        <Ball p={[0.56, 0.02, 0.1]} r={0.03} c="#1c1917" />
+        <Eye p={[0.1, 0.1, 0.15]} r={0.05} look={[1, 0]} />
+        {/* Tall ears with dark tips */}
+        {[0.1, -0.1].map((z, i) => (
+          <group key={i} position={[-0.05, 0.25, z]} rotation={[z, 0, 0.35]}>
+            <Pill p={[0, 0.2, 0]} r={0.07} len={0.4} c={coat} />
+            <Ball p={[0, 0.45, 0]} r={0.065} c="#1c1917" />
+          </group>
+        ))}
+        {/* Spiky mane */}
+        <Pill p={[-0.15, 0.18, 0]} r={0.05} len={0.2} c="#2a201c" rot={[0, 0, 1.2]} />
+      </group>
+      <Pill p={[-0.65, 1.0, 0]} r={0.04} len={0.4} c={coat} rot={[0, 0, kick ? -0.6 : 0.4]} />
+    </group>
+  );
+}
+
+export function CowModel({ step = 0 }: { step?: number }) {
+  // Texas longhorn: rusty red, white speckled face, enormous horns. Faces right.
+  const coat = '#a4512a';
+  return (
+    <group rotation={[0, -0.45, 0]}>
+      {[[0.7, 0.28, 0], [0.7, -0.28, Math.PI], [-0.7, 0.28, Math.PI], [-0.7, -0.28, 0]].map(([x, z, ph], i) => (
+        <group key={i} position={[x, 0.9, z]} rotation={[0, 0, Math.sin(step + ph) * 0.45]}>
+          <Pill p={[0, -0.45, 0]} r={0.12} len={0.55} c={i % 2 ? coat : '#f3ece0'} />
+          <Ball p={[0, -0.85, 0]} r={0.11} c="#2a201c" />
+        </group>
+      ))}
+      <Pill p={[0, 1.15, 0]} r={0.5} len={1.2} c={coat} rot={[0, 0, Math.PI / 2]} />
+      {/* White speckles */}
+      {[[0.3, 1.4, 0.4], [-0.4, 1.0, 0.45], [0.6, 0.9, 0.4], [-0.1, 1.5, 0.35]].map(([x, y, z], i) => (
+        <Ball key={i} p={[x, y, z]} r={0.13} c="#f3ece0" s={[1.3, 0.8, 0.4]} />
+      ))}
+      <Pill p={[-1.1, 1.0, 0]} r={0.05} len={0.6} c={coat} rot={[0, 0, 0.3]} />
+      {/* Head */}
+      <group position={[1.15, 1.3, 0]}>
+        <Ball p={[0, 0, 0]} r={0.33} c="#f3ece0" s={[1.2, 1.1, 1]} />
+        <Ball p={[0.18, 0.15, 0.2]} r={0.1} c={coat} />
+        <Ball p={[-0.05, 0.2, -0.2]} r={0.12} c={coat} />
+        <Ball p={[0.35, -0.15, 0]} r={0.2} c="#e6b6a6" s={[0.9, 0.8, 1.1]} />
+        <Eye p={[0.15, 0.12, 0.27]} r={0.06} look={[1, 0]} />
+        {/* Ears */}
+        <Ball p={[-0.1, 0.05, 0.38]} r={0.12} c={coat} s={[1, 0.5, 1.4]} />
+        <Ball p={[-0.1, 0.05, -0.38]} r={0.12} c={coat} s={[1, 0.5, 1.4]} />
+        {/* Horns, sweeping far out and up */}
+        {[1, -1].map(side => (
+          <group key={side} position={[-0.05, 0.25, 0.25 * side]} rotation={[side * -0.95, 0, 0.35]}>
+            <mesh position={[0, 0.85, 0]} castShadow>
+              <cylinderGeometry args={[0.035, 0.09, 1.7, 10]} />
+              <meshStandardMaterial color="#d8cdb6" roughness={0.6} />
+            </mesh>
+            <mesh position={[0.05, 1.75, 0]} rotation={[0, 0, -0.5]}>
+              <coneGeometry args={[0.03, 0.25, 8]} />
+              <meshStandardMaterial color="#6b6257" roughness={0.6} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+export function SlothModel({ grabbing = false, yawning = false }: { grabbing?: boolean; yawning?: boolean }) {
+  // Curled into a ball when flying; arms out when hanging on. Sized for radius 0.5.
+  const fur = '#9b8b74';
+  return (
+    <group>
+      <Ball p={[0, 0, 0]} r={0.42} c={fur} />
+      <Ball p={[0, -0.1, -0.1]} r={0.36} c="#8a7a63" s={[1.1, 0.9, 1]} />
+      {/* Arms with long claws */}
+      {[1, -1].map(side => (
+        <group key={side} position={[0.1, 0.1, 0.25 * side]} rotation={[0, 0, grabbing ? 1.3 : 0.4]}>
+          <Pill p={[0.25, 0, 0]} r={0.09} len={0.4} c={fur} rot={[0, 0, Math.PI / 2]} />
+          {[-0.04, 0, 0.04].map((dz, i) => (
+            <mesh key={i} position={[0.55, -0.03, dz]} rotation={[0, 0, -1.2]}>
+              <coneGeometry args={[0.02, 0.14, 6]} />
+              <meshStandardMaterial color="#3b3029" />
+            </mesh>
+          ))}
+        </group>
+      ))}
+      {/* Cream face with dark eye stripes and a little smile */}
+      <group position={[0.18, 0.12, 0.28]}>
+        <Ball p={[0, 0, 0]} r={0.2} c="#efe4cf" s={[1, 0.9, 0.6]} />
+        <Ball p={[-0.08, 0.03, 0.08]} r={0.06} c="#3b3029" s={[1.6, 0.7, 0.5]} />
+        <Ball p={[0.08, 0.03, 0.08]} r={0.06} c="#3b3029" s={[1.6, 0.7, 0.5]} />
+        <Ball p={[-0.07, 0.035, 0.11]} r={0.022} c="#111111" />
+        <Ball p={[0.07, 0.035, 0.11]} r={0.022} c="#111111" />
+        <Ball p={[0, -0.04, 0.12]} r={0.03} c="#2a201c" />
+        {yawning ? (
+          <Ball p={[0, -0.11, 0.1]} r={0.06} c="#5b1a1a" s={[1, 1.4, 0.4]} />
+        ) : (
+          <mesh position={[0, -0.09, 0.11]} rotation={[0, 0, Math.PI]}>
+            <torusGeometry args={[0.04, 0.008, 6, 12, Math.PI]} />
+            <meshStandardMaterial color="#2a201c" />
+          </mesh>
         )}
       </group>
     </group>
@@ -240,6 +420,7 @@ export const PRONG_FRONT: V3 = [0.32, 2.55, 0.4];
 
 export function AmmoModel({ type, r }: { type: AmmoType; r: number }) {
   if (type === 'penny') return <group scale={r / 0.5}><PennyModel flying /></group>;
+  if (type === 'sloth') return <group scale={r / 0.5}><SlothModel /></group>;
   if (type === 'pumpkin') {
     return (
       <group scale={r / 0.55}>

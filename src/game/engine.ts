@@ -12,14 +12,26 @@ const STEP = 1 / 60;
 const SETTLE_SECONDS = 1.2; // ignore damage while a fresh level settles
 const MAX_TURN_SECONDS = 7;
 
-export type AmmoType = 'ball' | 'pumpkin' | 'balloon' | 'penny';
+export type AmmoType = 'ball' | 'pumpkin' | 'balloon' | 'penny' | 'sloth';
+export type HelperType = 'donkey' | 'cow' | 'sloth';
+
+export const HELPERS: Record<HelperType, { label: string; tip: string }> = {
+  donkey: { label: 'Donkey', tip: 'Trots up to the fort, turns around, and bucks it.' },
+  cow: { label: 'Longhorn', tip: 'Bulldozes everything along the ground.' },
+  sloth: { label: 'Sloth', tip: 'Fire her from the catapult. She grabs on, yawns, and nearby turkeys nod off.' },
+};
 
 export const AMMO: Record<AmmoType, { r: number; density: number; restitution: number; label: string; tip: string }> = {
   ball: { r: 0.32, density: 2.4, restitution: 0.55, label: 'Tennis ball', tip: 'Bouncy and quick.' },
   pumpkin: { r: 0.55, density: 4.0, restitution: 0.05, label: 'Pumpkin', tip: 'Heavy. Smashes stone.' },
   balloon: { r: 0.42, density: 2.0, restitution: 0.2, label: 'Water balloon', tip: 'Tap in the air to split it into three.' },
   penny: { r: 0.5, density: 2.6, restitution: 0.2, label: 'Penny', tip: 'Tap in the air and she zooms forward.' },
+  sloth: { r: 0.5, density: 1.6, restitution: 0, label: 'Sloth', tip: 'Grabs on, then yawns. Nearby turkeys fall asleep.' },
 };
+
+const DONKEY = { w: 1.7, h: 1.4, speed: 8, kickRange: 4.5, kickDamage: 34 };
+const COW = { w: 2.6, h: 1.6, speed: 7, damageMult: 1.4 };
+const YAWN = { delay: 1.3, radius: 4.5, damage: 60 };
 
 export const MATERIALS: Record<Material, { density: number; friction: number; restitution: number; hp: number; points: number }> = {
   wood: { density: 0.8, friction: 0.7, restitution: 0.05, hp: 70, points: 500 },
@@ -35,7 +47,7 @@ const TURKEY = { density: 0.9, friction: 0.8, restitution: 0.1, hp: 30, bossHp: 
 const DAMAGE_SCALE = 5.5;
 const MIN_APPROACH_SPEED = 1.0;
 
-export type EntKind = 'block' | 'turkey' | 'shot' | 'ground';
+export type EntKind = 'block' | 'turkey' | 'shot' | 'ground' | 'helper';
 
 export interface Ent {
   id: number;
@@ -53,6 +65,15 @@ export interface Ent {
   body: Body;
   dead: boolean;
   hurtAt: number; // game time of the last big hit, for the "ouch" face
+  helper?: HelperType;
+  // Donkey and cow: what they are doing, and which way they face (1 = right).
+  act?: 'run' | 'turn' | 'kick' | 'leave' | 'done';
+  actAt?: number;
+  facing?: number;
+  // Sloth: when she grabbed on, and whether she has yawned yet.
+  grabbedAt?: number;
+  yawned?: boolean;
+  kicked?: boolean;
 }
 
 export type GameEvent =
@@ -62,6 +83,11 @@ export type GameEvent =
   | { type: 'launch'; ammo: AmmoType }
   | { type: 'ability'; ammo: AmmoType }
   | { type: 'turnEnd' }
+  | { type: 'helper'; helper: HelperType }
+  | { type: 'kick'; x: number; y: number }
+  | { type: 'moo' }
+  | { type: 'grab'; x: number; y: number }
+  | { type: 'yawn'; x: number; y: number; radius: number }
   | { type: 'end'; won: boolean };
 
 export type Phase = 'aiming' | 'flying' | 'over';
@@ -84,6 +110,9 @@ export class Game {
   private quietFor = 0;
   activeShot: Ent | null = null;
   abilityUsed = false;
+  helperUsed = false;
+  activeHelper: Ent | null = null;
+  private pendingGrab: Ent | null = null;
 
   constructor(level: LevelDef) {
     this.level = level;
@@ -151,10 +180,14 @@ export class Game {
     const a = bodyA.getUserData() as Ent;
     const b = bodyB.getUserData() as Ent;
     for (const e of [a, b]) {
-      if (!e || e.dead || e.kind === 'ground' || e.kind === 'shot' || e.material === 'rock') continue;
+      const other = e === a ? b : a;
+      if (e?.ammo === 'sloth' && e.grabbedAt === undefined && other) this.pendingGrab = e;
+    }
+    for (const e of [a, b]) {
+      if (!e || e.dead || e.kind === 'ground' || e.kind === 'shot' || e.kind === 'helper' || e.material === 'rock') continue;
       // Pumpkins hit harder than their mass alone, so they can crack stone.
       const other = e === a ? b : a;
-      const mult = other?.ammo === 'pumpkin' ? 1.6 : 1;
+      const mult = other?.ammo === 'pumpkin' ? 1.6 : other?.helper === 'cow' ? COW.damageMult : 1;
       e.hp -= dmg * mult;
       if (dmg > 8) e.hurtAt = this.time;
     }
@@ -226,6 +259,132 @@ export class Game {
     return true;
   }
 
+  // One farm helper per level. The sloth goes into the catapult; the donkey and cow walk in.
+  callHelper(type: HelperType) {
+    if (this.phase !== 'aiming' || !this.ready || this.helperUsed) return false;
+    this.helperUsed = true;
+    this.events.push({ type: 'helper', helper: type });
+    if (type === 'sloth') {
+      this.ammo.unshift('sloth');
+      return true;
+    }
+    const size = type === 'donkey' ? DONKEY : COW;
+    const body = this.world.createBody({ type: 'kinematic', position: Vec2(-4, size.h / 2 + 0.02) });
+    body.createFixture(new Box(size.w / 2, size.h / 2), { friction: 0.6 });
+    body.setLinearVelocity(Vec2(type === 'donkey' ? DONKEY.speed : COW.speed, 0));
+    this.activeHelper = this.add({
+      kind: 'helper', helper: type, shape: 'box', w: size.w, h: size.h, r: 0, hp: Infinity, body,
+      act: 'run', actAt: this.time, facing: 1,
+    });
+    if (type === 'cow') this.events.push({ type: 'moo' });
+    this.phase = 'flying';
+    this.turnStart = this.time;
+    this.quietFor = 0;
+    return true;
+  }
+
+  // Distance from x along the ground to the first thing in the way (blocks, turkeys, hills).
+  private clearanceAhead(x: number, y: number, maxDist: number) {
+    let best = maxDist;
+    this.world.rayCast(Vec2(x, y), Vec2(x + maxDist, y), (fixture, point, _normal, fraction) => {
+      const e = fixture.getBody().getUserData() as Ent;
+      if (!e || e.kind === 'ground' || e.kind === 'helper' || e.kind === 'shot') return -1;
+      best = Math.min(best, point.x - x);
+      return fraction;
+    });
+    return best;
+  }
+
+  private stepHelper() {
+    const h = this.activeHelper;
+    if (!h || h.dead) return;
+    const b = h.body;
+    const p = b.getPosition();
+    const t = this.time - (h.actAt ?? 0);
+    const go = (act: Ent['act'], vx: number) => { h.act = act; h.actAt = this.time; b.setLinearVelocity(Vec2(vx, 0)); };
+
+    if (h.helper === 'donkey') {
+      if (h.act === 'run') {
+        const front = p.x + h.w / 2;
+        if (this.clearanceAhead(front, 0.5, 40) < 1.2 || p.x > this.level.width) go('turn', 0);
+      } else if (h.act === 'turn' && t > 0.45) {
+        h.facing = -1; // rear end toward the fort
+        go('kick', 0);
+      } else if (h.act === 'kick' && t > 0.35 && !h.kicked) {
+        h.kicked = true;
+        this.buck(p.x + h.w / 2);
+      } else if (h.act === 'kick' && t > 1.0) {
+        go('leave', -DONKEY.speed * 1.8);
+      }
+    } else if (h.helper === 'cow') {
+      if (h.act === 'run') {
+        const front = p.x + h.w / 2;
+        // Only hills stop her; everything else gets bulldozed.
+        let rockAhead = Infinity;
+        this.world.rayCast(Vec2(front, 0.4), Vec2(front + 1, 0.4), (fixture, point) => {
+          const e = fixture.getBody().getUserData() as Ent;
+          if (e?.material === 'rock') rockAhead = Math.min(rockAhead, point.x - front);
+          return -1;
+        });
+        if (rockAhead < 0.3 || p.x > this.level.width + 6 || t > 6) { h.facing = -1; go('leave', -COW.speed * 2); }
+      }
+    }
+    if (h.act === 'leave' && p.x < -14) {
+      h.act = 'done';
+      h.dead = true;
+      this.world.destroyBody(b);
+      this.activeHelper = null;
+    }
+  }
+
+  // The donkey's kick: everything just behind him gets launched up and away.
+  private buck(fromX: number) {
+    this.events.push({ type: 'kick', x: fromX, y: 0.8 });
+    for (const e of this.ents.values()) {
+      if (e.dead || (e.kind !== 'block' && e.kind !== 'turkey') || e.material === 'rock') continue;
+      const p = e.body.getPosition();
+      const d = p.x - fromX;
+      if (d < -0.5 || d > DONKEY.kickRange || p.y > 3.5) continue;
+      const fall = 1 - Math.max(0, d) / DONKEY.kickRange;
+      const m = e.body.getMass();
+      e.body.applyLinearImpulse(Vec2(m * 13 * fall, m * 8 * fall), p, true);
+      e.body.applyAngularImpulse((Math.random() - 0.5) * m * 2, true);
+      e.hp -= DONKEY.kickDamage * fall;
+      e.hurtAt = this.time;
+    }
+  }
+
+  private stepSloth() {
+    const g = this.pendingGrab;
+    if (g && !g.dead && g.grabbedAt === undefined) {
+      // She grabs whatever she touched and hangs on.
+      g.grabbedAt = this.time;
+      g.body.setLinearVelocity(Vec2(0, 0));
+      g.body.setAngularVelocity(0);
+      g.body.setStatic();
+      const p = g.body.getPosition();
+      this.events.push({ type: 'grab', x: p.x, y: p.y });
+    }
+    this.pendingGrab = null;
+    for (const e of this.ents.values()) {
+      if (e.ammo !== 'sloth' || e.dead || e.grabbedAt === undefined || e.yawned) continue;
+      if (this.time - e.grabbedAt < YAWN.delay) continue;
+      e.yawned = true;
+      const p = e.body.getPosition();
+      this.events.push({ type: 'yawn', x: p.x, y: p.y, radius: YAWN.radius });
+      for (const t of this.ents.values()) {
+        if (t.kind !== 'turkey' || t.dead) continue;
+        const q = t.body.getPosition();
+        if (Math.hypot(q.x - p.x, q.y - p.y) < YAWN.radius) {
+          t.hp -= YAWN.damage;
+          t.hurtAt = this.time;
+          // Drowsy turkeys keel over.
+          t.body.applyAngularImpulse(t.body.getMass() * 0.6, true);
+        }
+      }
+    }
+  }
+
   // Advance by real elapsed time using fixed physics steps.
   update(dt: number) {
     this.accumulator += Math.min(dt, 0.1);
@@ -241,21 +400,26 @@ export class Game {
       this.time += STEP;
       return;
     }
+    this.stepHelper();
     this.world.step(STEP, 8, 3);
     this.time += STEP;
+    this.stepSloth();
     this.reap();
 
     if (this.phase === 'flying') {
       const moving = this.anythingMoving();
       this.quietFor = moving ? 0 : this.quietFor + STEP;
       const turnTime = this.time - this.turnStart;
+      const busy = (this.activeHelper && !this.activeHelper.dead) ||
+        [...this.ents.values()].some(e => e.ammo === 'sloth' && !e.dead && e.grabbedAt !== undefined && !e.yawned);
+      if (busy && turnTime < 12) return;
       if (this.quietFor > 0.5 || turnTime > MAX_TURN_SECONDS || (this.turkeysLeft === 0 && turnTime > 2.5)) this.endTurn();
     }
   }
 
   private anythingMoving() {
     for (const e of this.ents.values()) {
-      if (e.dead || e.kind === 'ground') continue;
+      if (e.dead || e.kind === 'ground' || e.kind === 'helper') continue;
       const b = e.body;
       if (!b.isAwake()) continue;
       const v = b.getLinearVelocity();
@@ -281,7 +445,7 @@ export class Game {
 
   private reap() {
     for (const e of this.ents.values()) {
-      if (e.dead || e.kind === 'ground') continue;
+      if (e.dead || e.kind === 'ground' || e.kind === 'helper') continue;
       const p = e.body.getPosition();
       const out = p.y < -4 || p.x < -25 || p.x > this.level.width + 25;
       if (e.hp <= 0 || out) {
@@ -302,6 +466,8 @@ export class Game {
     for (const e of this.ents.values()) {
       if (e.kind === 'shot' && !e.dead) { e.dead = true; this.world.destroyBody(e.body); }
     }
+    if (this.activeHelper && !this.activeHelper.dead) { this.activeHelper.dead = true; this.world.destroyBody(this.activeHelper.body); }
+    this.activeHelper = null;
     this.sweep();
     this.activeShot = null;
     this.events.push({ type: 'turnEnd' });
@@ -311,12 +477,19 @@ export class Game {
       this.score += this.ammo.length * 10000;
       this.phase = 'over';
       this.events.push({ type: 'end', won: true });
-    } else if (this.ammo.length === 0) {
+    } else if (this.ammo.length === 0 && this.helperUsed) {
       this.phase = 'over';
       this.events.push({ type: 'end', won: false });
     } else {
       this.phase = 'aiming';
     }
+  }
+
+  // Out of ammo with the helper still unused, the player can call it or give up.
+  forfeit() {
+    if (this.phase !== 'aiming' || this.ammo.length > 0) return;
+    this.phase = 'over';
+    this.events.push({ type: 'end', won: false });
   }
 
   stars() {

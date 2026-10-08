@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Lock, Play, RotateCcw, Star, Volume2, VolumeX, ChevronRight, LayoutGrid, Smartphone } from 'lucide-react';
 import { useStore, isUnlocked } from '../game/store';
 import { LEVELS } from '../game/levels';
-import { AMMO, type AmmoType } from '../game/engine';
+import { AMMO, HELPERS, type AmmoType, type HelperType } from '../game/engine';
 import { setSoundEnabled, sfx, unlockAudio } from '../game/audio';
 import { live } from './Stage';
+import RadioDial from './Radio';
 
 const btn = 'pointer-events-auto active:scale-95 transition-transform';
 
@@ -14,7 +15,10 @@ const AMMO_ICON: Record<AmmoType, React.ReactNode> = {
   pumpkin: '🎃',
   balloon: '💧',
   penny: '🐕',
+  sloth: '🦥',
 };
+
+const HELPER_ICON: Record<HelperType, string> = { donkey: '🫏', cow: '🐂', sloth: '🦥' };
 
 function Stars({ n, size = 22 }: { n: number; size?: number }) {
   return (
@@ -69,7 +73,7 @@ function Title() {
           <Smartphone size={18} className="rotate-90" /> Turn your phone sideways for the best view
         </p>
       )}
-      <div className="absolute top-4 right-4"><SoundButton /></div>
+      <div className="absolute top-4 right-4 flex items-start gap-2"><RadioDial compact /><SoundButton /></div>
     </div>
   );
 }
@@ -121,6 +125,8 @@ function Hud() {
   const goLevels = useStore(s => s.goLevels);
   const result = useStore(s => s.result);
   const attempt = useStore(s => s.attempt);
+  const helperUsed = useStore(s => s.helperUsed);
+  const [picking, setPicking] = useState(false);
   const level = LEVELS[levelIndex];
   const [introDone, setIntroDone] = useState(false);
   const [aimedOnce, setAimedOnce] = useState(false);
@@ -131,6 +137,10 @@ function Hud() {
     return () => clearTimeout(t);
   }, [level, attempt]);
   useEffect(() => { if (phase === 'flying') setAimedOnce(true); }, [phase]);
+  useEffect(() => { setPicking(false); }, [attempt, levelIndex]);
+  const canCall = phase === 'aiming' && ready && !helperUsed && !result;
+  const outOfAmmo = phase === 'aiming' && ammo.length === 0 && !result;
+  const call = (h: HelperType) => { sfx.click(); live.game?.callHelper(h); setPicking(false); };
 
   const canTap = phase === 'flying';
 
@@ -146,9 +156,12 @@ function Hud() {
           </button>
           <SoundButton />
         </div>
-        <div className="text-right [text-shadow:0_2px_3px_#000]">
-          <div className="text-3xl font-black leading-none">{score.toLocaleString()}</div>
-          <div className="text-xs font-bold opacity-90">Level {level.id}: {level.name}</div>
+        <div className="flex flex-col items-end gap-2">
+          <div className="text-right [text-shadow:0_2px_3px_#000]">
+            <div className="text-3xl font-black leading-none">{score.toLocaleString()}</div>
+            <div className="text-xs font-bold opacity-90">Level {level.id}: {level.name}</div>
+          </div>
+          <RadioDial />
         </div>
       </div>
 
@@ -163,6 +176,40 @@ function Hud() {
             </div>
           )}
           {canTap && <SpecialHint />}
+          {outOfAmmo && (
+            <div className="pointer-events-auto bg-black/65 rounded-2xl px-4 py-3 text-center flex flex-col gap-2 items-center">
+              <div className="text-sm font-bold">Out of ammo, but a farm helper is still free.</div>
+              <div className="flex gap-2">
+                <button onClick={() => setPicking(true)} className={`${btn} px-4 py-2 rounded-full bg-orange-500 font-black uppercase text-sm`}>Call a helper</button>
+                <button onClick={() => live.game?.forfeit()} className={`${btn} px-4 py-2 rounded-full bg-white/15 font-bold text-sm`}>Give up</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(canCall || picking) && (
+        <div className="absolute right-3 bottom-3 flex flex-col items-end gap-2">
+          {picking && (
+            <div className="pointer-events-auto pop-in bg-[#3b2a1e]/95 border-2 border-orange-300 rounded-2xl p-2 flex flex-col gap-1.5 w-[250px]">
+              <div className="text-xs font-black uppercase text-orange-200 px-1">One helper per level</div>
+              {(Object.keys(HELPERS) as HelperType[]).map(h => (
+                <button key={h} onClick={() => call(h)} className={`${btn} flex items-center gap-2 text-left bg-white/10 hover:bg-white/20 rounded-xl px-2 py-1.5`}>
+                  <span className="text-2xl">{HELPER_ICON[h]}</span>
+                  <span className="leading-tight">
+                    <span className="block text-sm font-black">{HELPERS[h].label}</span>
+                    <span className="block text-[11px] opacity-85">{HELPERS[h].tip}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {canCall && (
+            <button onClick={() => { sfx.click(); setPicking(p => !p); }}
+              className={`${btn} pointer-events-auto h-12 px-4 rounded-full bg-orange-500 border-4 border-orange-200 font-black uppercase text-sm flex items-center gap-1 shadow-lg ${outOfAmmo ? 'animate-bounce' : ''}`}>
+              <span className="text-lg">🫏🐂🦥</span> Helpers
+            </button>
+          )}
         </div>
       )}
 
@@ -243,7 +290,8 @@ export default function Screens() {
   const sound = useStore(s => s.sound);
   useEffect(() => { setSoundEnabled(sound); }, [sound]);
   return (
-    <div className="absolute inset-0 pointer-events-none">
+    // z-30 keeps menus above the turkey name labels, which the 3D scene also draws as HTML.
+    <div className="absolute inset-0 pointer-events-none z-30">
       {screen === 'title' && <Title />}
       {screen === 'levels' && <Levels />}
       {screen === 'play' && (

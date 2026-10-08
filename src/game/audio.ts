@@ -74,4 +74,9 @@ export const sfx = {
   win: () => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone('triangle', f, f, 0.18, 0.14, i * 0.12)); },
   lose: () => { [392, 330, 262, 196].forEach((f, i) => tone('triangle', f, f * 0.98, 0.25, 0.14, i * 0.2)); },
   click: () => tone('sine', 660, 880, 0.06, 0.08),
+  moo: () => { tone('sawtooth', 140, 110, 0.9, 0.12); tone('sawtooth', 70, 60, 0.9, 0.08); },
+  heehaw: () => { tone('sawtooth', 700, 500, 0.25, 0.1); tone('sawtooth', 300, 220, 0.35, 0.1, 0.27); tone('sawtooth', 700, 500, 0.25, 0.1, 0.65); },
+  kick: () => { noise(0.2, 0.4, 600); tone('sine', 120, 50, 0.2, 0.3); },
+  yawn: () => { tone('sine', 520, 180, 1.4, 0.12); tone('triangle', 260, 90, 1.4, 0.06); },
+  grab: () => tone('triangle', 300, 600, 0.12, 0.1),
 };

@@ -32,6 +32,7 @@ interface State {
   phase: Phase;
   ready: boolean;
   turkeysLeft: number;
+  helperUsed: boolean;
   result: Result | null;
   sound: boolean;
   lowGraphics: boolean;
@@ -42,7 +43,7 @@ interface State {
   restart: () => void;
   next: () => void;
   finish: (won: boolean, score: number, stars: number) => void;
-  sync: (h: Partial<Pick<State, 'score' | 'ammo' | 'phase' | 'ready' | 'turkeysLeft'>>) => void;
+  sync: (h: Partial<Pick<State, 'score' | 'ammo' | 'phase' | 'ready' | 'turkeysLeft' | 'helperUsed'>>) => void;
   toggleSound: () => void;
   toggleGraphics: () => void;
 }
@@ -57,6 +58,7 @@ export const useStore = create<State>((set, get) => ({
   phase: 'aiming',
   ready: false,
   turkeysLeft: 0,
+  helperUsed: false,
   result: null,
   sound: readSound(),
   // Phones start without shadows; the WebGL view stays light on mobile GPUs.
