@@ -3,7 +3,9 @@
 // tuning in drops you partway into a song, the dial hisses with static, and a DJ
 // chats between songs, out loud if the device has a speech voice.
 
-export interface Track { title: string; file: string }
+import { addSongs, clearSongs, loadSongs } from './mymusic';
+
+export interface Track { title: string; file: string; artist?: string }
 
 export interface Station {
   id: string;
@@ -27,7 +29,7 @@ const ADS = [
   'Turkey lawyers are standing by. Dave says he was framed.',
 ];
 
-const t = (title: string, file: string): Track => ({ title, file: `/radio/${file}.mp3` });
+const t = (title: string, file: string): Track => ({ title, file: `/radio/${file}.mp3`, artist: 'Kevin MacLeod' });
 
 export const STATIONS: Station[] = [
   {
@@ -47,6 +49,15 @@ export const STATIONS: Station[] = [
       "You're locked into Turkey Trot 80s! Coming up, the power ballad 'Total Eclipse of the Barn'.",
       'Dave called in. He says the crown is real gold. It is not.',
       'Big hair, big shoulder pads, big trouble in the turkey pen. Turkey Trot 80s.',
+    ],
+  },
+  {
+    id: 'mine', name: 'My Music', freq: '101.1', tagline: 'Your own songs, straight from your phone',
+    tracks: [],
+    djLines: [
+      'You are listening to My Music. Excellent taste, if the turkeys say so themselves. They do not.',
+      'Ranger requested this one. He is asleep now, but he requested it.',
+      'Back to back hits on My Music. Dave has asked us to stop playing them. We will not.',
     ],
   },
   {
@@ -80,6 +91,31 @@ class Radio {
   private emit() { this.listeners.forEach(f => f()); }
 
   get station() { return STATIONS[this.stationIndex]; }
+  get myStation() { return STATIONS.find(x => x.id === 'mine')!; }
+
+  // Load songs saved on this device into the My Music station.
+  async loadMyMusic() {
+    const songs = await loadSongs();
+    const st = this.myStation;
+    st.tracks.forEach(tr => URL.revokeObjectURL(tr.file));
+    st.tracks = songs.map(s => ({ title: s.title, file: URL.createObjectURL(s.blob) }));
+    this.emit();
+  }
+
+  async addMyMusic(files: FileList) {
+    await addSongs(files);
+    await this.loadMyMusic();
+    const st = this.myStation;
+    this.stationIndex = STATIONS.indexOf(st);
+    this.trackIndex.set(st.id, 0);
+    if (!this.on) this.start(); else this.playCurrent(false);
+  }
+
+  async clearMyMusic() {
+    await clearSongs();
+    await this.loadMyMusic();
+    if (this.on && this.station.id === 'mine') { this.audio?.pause(); this.nowPlaying = ''; this.emit(); }
+  }
 
   private ensureAudio() {
     if (!this.audio) {
@@ -132,7 +168,16 @@ class Radio {
   // Play the station's current song. Tuning in joins it partway through, like real radio.
   private playCurrent(midSong: boolean) {
     const st = this.station;
-    const i = this.trackIndex.get(st.id) ?? Math.floor(Math.random() * st.tracks.length);
+    if (st.tracks.length === 0) {
+      // My Music with nothing added yet.
+      this.audio?.pause();
+      this.nowPlaying = '';
+      this.emit();
+      return;
+    }
+    // Your own songs always start from the beginning.
+    if (st.id === 'mine') midSong = false;
+    const i = (this.trackIndex.get(st.id) ?? Math.floor(Math.random() * st.tracks.length)) % st.tracks.length;
     this.trackIndex.set(st.id, i);
     const track = st.tracks[i];
     const a = this.ensureAudio();
@@ -150,7 +195,7 @@ class Radio {
   private songEnded() {
     if (!this.on) return;
     const st = this.station;
-    this.trackIndex.set(st.id, ((this.trackIndex.get(st.id) ?? 0) + 1) % st.tracks.length);
+    this.trackIndex.set(st.id, ((this.trackIndex.get(st.id) ?? 0) + 1) % Math.max(1, st.tracks.length));
     const pool = Math.random() < 0.45 ? ADS : st.djLines;
     this.dj(pool[Math.floor(Math.random() * pool.length)]);
     // Let the DJ get a few words in before the next song.
