@@ -79,4 +79,7 @@ export const sfx = {
   kick: () => { noise(0.2, 0.4, 600); tone('sine', 120, 50, 0.2, 0.3); },
   yawn: () => { tone('sine', 520, 180, 1.4, 0.12); tone('triangle', 260, 90, 1.4, 0.06); },
   grab: () => tone('triangle', 300, 600, 0.12, 0.1),
+  // Rattle of the Red Baron's machine guns, and the engine roar as he arrives.
+  gun: () => { noise(0.05, 0.22, 2200); tone('square', 120, 70, 0.04, 0.06); },
+  plane: () => { tone('sawtooth', 70, 140, 1.6, 0.12); tone('sawtooth', 72, 150, 1.6, 0.08); noise(1.6, 0.12, 500); },
 };

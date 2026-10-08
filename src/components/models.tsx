@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
+import type { Group } from 'three';
 import type { AmmoType } from '../game/engine';
 import type { Material as BlockMaterial } from '../game/levels';
 
@@ -293,6 +295,125 @@ export function RangerModel({ pose = 'lie', step = 0, belly = 0 }: { pose?: Rang
   );
 }
 
+// ---------- The Red Baron: the sloth in his red triplane ----------
+
+function IronCross({ p, r = [0, 0, 0] as V3, size = 0.34 }: { p: V3; r?: V3; size?: number }) {
+  return (
+    <group position={p} rotation={r}>
+      <mesh>
+        <boxGeometry args={[size, size, 0.01]} />
+        <meshStandardMaterial color="#f8fafc" />
+      </mesh>
+      <mesh position={[0, 0, 0.01]}>
+        <boxGeometry args={[size * 0.75, size * 0.2, 0.01]} />
+        <meshStandardMaterial color="#111111" />
+      </mesh>
+      <mesh position={[0, 0, 0.01]}>
+        <boxGeometry args={[size * 0.2, size * 0.75, 0.01]} />
+        <meshStandardMaterial color="#111111" />
+      </mesh>
+    </group>
+  );
+}
+
+// Faces right, about 3 m long. Tilted toward the camera so the three wings show.
+export function BaronModel() {
+  const prop = useRef<Group>(null);
+  const scarf = useRef<Group>(null);
+  useFrame((s, dt) => {
+    if (prop.current) prop.current.rotation.x += dt * 40;
+    if (scarf.current) scarf.current.rotation.z = 0.25 + Math.sin(s.clock.elapsedTime * 18) * 0.15;
+  });
+  const red = '#d11a1a';
+  const wing = (y: number, span: number) => (
+    <group key={y} position={[0.35, y, 0]}>
+      <RoundedBox args={[0.65, 0.07, span]} radius={0.03} smoothness={2} castShadow>
+        <meshStandardMaterial color={red} roughness={0.6} />
+      </RoundedBox>
+      <IronCross p={[0, 0.04, span / 2 - 0.35]} r={[-Math.PI / 2, 0, 0]} size={0.4} />
+    </group>
+  );
+  return (
+    <group rotation={[0.35, -0.55, 0]}>
+      {/* Fuselage, cowling, guns */}
+      <Pill p={[0, 0, 0]} r={0.3} len={1.9} c={red} rot={[0, 0, Math.PI / 2]} />
+      <mesh position={[1.25, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.33, 0.33, 0.25, 20]} />
+        <meshStandardMaterial color="#6b7280" metalness={0.6} roughness={0.35} />
+      </mesh>
+      {[0.09, -0.09].map(z => (
+        <mesh key={z} position={[0.85, 0.36, z]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.035, 0.035, 0.6, 8]} />
+          <meshStandardMaterial color="#1f2937" metalness={0.5} />
+        </mesh>
+      ))}
+      {/* Spinning propeller */}
+      <group ref={prop} position={[1.42, 0, 0]}>
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <coneGeometry args={[0.1, 0.22, 12]} />
+          <meshStandardMaterial color="#d4a017" metalness={0.6} roughness={0.3} />
+        </mesh>
+        <mesh>
+          <boxGeometry args={[0.05, 1.3, 0.1]} />
+          <meshStandardMaterial color="#5b3a1e" transparent opacity={0.75} />
+        </mesh>
+      </group>
+      {/* Three wings, with struts */}
+      {wing(-0.32, 2.6)}
+      {wing(0.18, 3.0)}
+      {wing(0.68, 3.2)}
+      {[1.1, -1.1].map(z => (
+        <mesh key={z} position={[0.35, 0.18, z]}>
+          <boxGeometry args={[0.05, 1.0, 0.05]} />
+          <meshStandardMaterial color="#7f1d1d" />
+        </mesh>
+      ))}
+      {/* Tail fin with the cross, and the tailplane */}
+      <group position={[-1.2, 0.3, 0]}>
+        <RoundedBox args={[0.45, 0.55, 0.06]} radius={0.03} smoothness={2}>
+          <meshStandardMaterial color={red} roughness={0.6} />
+        </RoundedBox>
+        <IronCross p={[0, 0, 0.04]} size={0.3} />
+        <IronCross p={[0, 0, -0.04]} r={[0, Math.PI, 0]} size={0.3} />
+      </group>
+      <RoundedBox args={[0.4, 0.05, 1.1]} radius={0.02} position={[-1.2, 0.05, 0]}>
+        <meshStandardMaterial color={red} roughness={0.6} />
+      </RoundedBox>
+      {/* Wheels */}
+      {[0.45, -0.45].map(z => (
+        <group key={z} position={[0.55, -0.72, z]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.16, 0.07, 10, 18]} />
+            <meshStandardMaterial color="#111111" />
+          </mesh>
+          <mesh position={[0, 0.25, 0]}>
+            <boxGeometry args={[0.05, 0.45, 0.05]} />
+            <meshStandardMaterial color="#7f1d1d" />
+          </mesh>
+        </group>
+      ))}
+      {/* The pilot: sloth in a leather helmet, goggles and a red scarf */}
+      <group position={[-0.25, 0.55, 0.05]}>
+        <Ball p={[0, 0, 0]} r={0.26} c="#9b8b74" />
+        <Ball p={[0.16, -0.03, 0.12]} r={0.15} c="#efe4cf" s={[0.9, 0.85, 0.7]} />
+        <Ball p={[0.22, 0.0, 0.2]} r={0.045} c="#3b3029" s={[1.6, 0.7, 0.5]} />
+        <Ball p={[0.27, -0.06, 0.16]} r={0.03} c="#2a201c" />
+        <Ball p={[0, 0.12, 0]} r={0.27} c="#6b3f1f" s={[1, 0.62, 1]} />
+        {[0.12, -0.04].map((z, i) => (
+          <mesh key={i} position={[0.17, 0.13, z + 0.12]} rotation={[0, 0.9, 0]}>
+            <torusGeometry args={[0.065, 0.022, 8, 16]} />
+            <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.25} />
+          </mesh>
+        ))}
+        <group ref={scarf} position={[-0.15, -0.2, 0]}>
+          <Pill p={[-0.35, 0, 0]} r={0.06} len={0.6} c="#b91c1c" rot={[0, 0, Math.PI / 2]} />
+        </group>
+        <Pill p={[0.05, -0.22, 0]} r={0.09} len={0.2} c="#b91c1c" rot={[0, 0, Math.PI / 2]} />
+      </group>
+    </group>
+  );
+}
+
 // Ranger's magic: a giant glowing paw. Sized for radius 1.1.
 export function PawModel() {
   const glow = '#dbeafe';
@@ -518,6 +639,15 @@ export function AmmoModel({ type, r }: { type: AmmoType; r: number }) {
   if (type === 'penny') return <group scale={r / 0.5}><PennyModel flying /></group>;
   if (type === 'sloth') return <group scale={r / 0.5}><SlothModel /></group>;
   if (type === 'paw') return <group scale={r / 1.1}><PawModel /></group>;
+  if (type === 'bullet') {
+    // Glowing tracer round
+    return (
+      <mesh rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[0.06, 0.35, 4, 8]} />
+        <meshStandardMaterial color="#fde047" emissive="#f59e0b" emissiveIntensity={1.5} />
+      </mesh>
+    );
+  }
   if (type === 'pumpkin') {
     return (
       <group scale={r / 0.55}>

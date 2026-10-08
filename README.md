@@ -14,14 +14,11 @@ Dave, Martin, Kevin, Elliot and Bob have built forts on Wallace's farm. Load the
 - **Farm helpers (one per level):** tap Helpers and pick one.
   - Donkey: trots up to the fort, turns around, and bucks it.
   - Longhorn: bulldozes everything along the ground until a hill stops her.
-  - Sloth: goes in the catapult. She grabs whatever she hits, yawns, and nearby turkeys nod off.
+  - Red Baron Sloth: roars in on his red triplane and strafes the fort with his machine guns.
 - **Radio:** tap the radio button. Three stations of real recordings: Gobble FM (country and bluegrass),
   Turkey Trot 80s (synth) and Radio Free Farmyard (easy listening). Tuning in drops you partway into a song,
   like GTA. A DJ chats and reads fake ads between songs, out loud if the device has a speech voice
   (the microphone button turns the voice off). Music by Kevin MacLeod, see `public/radio/CREDITS.txt`.
-- **Top Gun Radio (86.0 FM):** streams the official Top Gun soundtrack videos from the artists' and labels'
-  YouTube channels. Nothing is hosted by the game. YouTube requires its player to stay visible (at least
-  200 x 200), so a small video window shows in the bottom-left while it plays. Videos that will not play are skipped.
 - **My Music (101.1 FM):** tune to it and tap Add songs to pick music files from your own phone. They are
   saved only in that browser on that device (never uploaded), so they are there next time. The bin button removes them.
 - **Ranger** the Great Pyrenees lives between the catapult and the fort. He lies about, rolls over,

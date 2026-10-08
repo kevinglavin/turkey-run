@@ -12,13 +12,13 @@ const STEP = 1 / 60;
 const SETTLE_SECONDS = 1.2; // ignore damage while a fresh level settles
 const MAX_TURN_SECONDS = 7;
 
-export type AmmoType = 'ball' | 'pumpkin' | 'balloon' | 'penny' | 'sloth' | 'paw';
+export type AmmoType = 'ball' | 'pumpkin' | 'balloon' | 'penny' | 'sloth' | 'paw' | 'bullet';
 export type HelperType = 'donkey' | 'cow' | 'sloth';
 
 export const HELPERS: Record<HelperType, { label: string; tip: string }> = {
   donkey: { label: 'Donkey', tip: 'Trots up to the fort, turns around, and bucks it.' },
   cow: { label: 'Longhorn', tip: 'Bulldozes everything along the ground.' },
-  sloth: { label: 'Sloth', tip: 'Fire her from the catapult. She grabs on, yawns, and nearby turkeys nod off.' },
+  sloth: { label: 'Red Baron Sloth', tip: 'Roars in on his red triplane and strafes the fort with his machine guns.' },
 };
 
 export const AMMO: Record<AmmoType, { r: number; density: number; restitution: number; label: string; tip: string }> = {
@@ -29,12 +29,16 @@ export const AMMO: Record<AmmoType, { r: number; density: number; restitution: n
   sloth: { r: 0.5, density: 1.6, restitution: 0, label: 'Sloth', tip: 'Grabs on, then yawns. Nearby turkeys fall asleep.' },
   // Ranger's magic: never in the ammo list, it drops from the sky where the player taps.
   paw: { r: 1.1, density: 5, restitution: 0, label: "Ranger's Sky Paw", tip: 'A giant magic paw stomps down wherever you tap.' },
+  // The Red Baron's machine-gun rounds.
+  bullet: { r: 0.11, density: 6, restitution: 0.1, label: 'Bullet', tip: '' },
 };
 const PAW_DROP = { height: 15, speed: 22 };
 
 const DONKEY = { w: 1.7, h: 1.4, speed: 8, kickRange: 4.5, kickDamage: 34 };
 const COW = { w: 2.6, h: 1.6, speed: 7, damageMult: 1.4 };
 const YAWN = { delay: 1.3, radius: 4.5, damage: 60 };
+// The Red Baron's strafing run: flies in from the left, dives over the fort firing, climbs away.
+const BARON = { speed: 15, strafeSpeed: 11, startY: 10, clearance: 2.2, fireEvery: 0.07, bulletSpeed: 32, gunAngle: -1.2 };
 
 export const MATERIALS: Record<Material, { density: number; friction: number; restitution: number; hp: number; points: number }> = {
   wood: { density: 0.8, friction: 0.7, restitution: 0.05, hp: 70, points: 500 },
@@ -77,6 +81,7 @@ export interface Ent {
   grabbedAt?: number;
   yawned?: boolean;
   kicked?: boolean;
+  firedAt?: number;
 }
 
 export type GameEvent =
@@ -92,6 +97,7 @@ export type GameEvent =
   | { type: 'grab'; x: number; y: number }
   | { type: 'yawn'; x: number; y: number; radius: number }
   | { type: 'paw'; x: number }
+  | { type: 'gun'; x: number; y: number }
   | { type: 'end'; won: boolean };
 
 export type Phase = 'aiming' | 'flying' | 'over';
@@ -264,13 +270,22 @@ export class Game {
     return true;
   }
 
-  // One farm helper per level. The sloth goes into the catapult; the donkey and cow walk in.
+  // One farm helper per level. The donkey and cow walk in; the sloth flies in as the Red Baron.
   callHelper(type: HelperType) {
     if (this.phase !== 'aiming' || !this.ready || this.helperUsed) return false;
     this.helperUsed = true;
     this.events.push({ type: 'helper', helper: type });
     if (type === 'sloth') {
-      this.ammo.unshift('sloth');
+      // The plane has no collision shape: it flies over everything and only the bullets hit.
+      const body = this.world.createBody({ type: 'kinematic', position: Vec2(-10, BARON.startY) });
+      body.setLinearVelocity(Vec2(BARON.speed, 0));
+      this.activeHelper = this.add({
+        kind: 'helper', helper: 'sloth', shape: 'box', w: 3, h: 1.4, r: 0, hp: Infinity, body,
+        act: 'run', actAt: this.time, facing: 1, firedAt: -99,
+      });
+      this.phase = 'flying';
+      this.turnStart = this.time;
+      this.quietFor = 0;
       return true;
     }
     const size = type === 'donkey' ? DONKEY : COW;
@@ -301,6 +316,18 @@ export class Game {
     this.abilityUsed = true;
     this.events.push({ type: 'paw', x });
     return true;
+  }
+
+  // Left edge and top of the fort, for the Red Baron's strafing run.
+  private fortBounds() {
+    let left = Infinity, top = 0;
+    for (const e of this.ents.values()) {
+      if (e.dead || (e.kind !== 'block' && e.kind !== 'turkey')) continue;
+      const p = e.body.getPosition();
+      top = Math.max(top, p.y + e.h / 2);
+      if (e.material !== 'rock') left = Math.min(left, p.x - e.w / 2);
+    }
+    return { left: Number.isFinite(left) ? left : this.level.width / 2, top };
   }
 
   // Distance from x along the ground to the first thing in the way (blocks, turkeys, hills).
@@ -336,6 +363,31 @@ export class Game {
       } else if (h.act === 'kick' && t > 1.0) {
         go('leave', -DONKEY.speed * 1.8);
       }
+    } else if (h.helper === 'sloth') {
+      // Ease down to just above the tallest part of the fort, fire, then pull up and away.
+      const { left, top } = this.fortBounds();
+      const cruiseY = Math.max(5, top + BARON.clearance);
+      // Bullets angle down and forward, so they land about this far ahead of the plane.
+      const lead = cruiseY * 0.9;
+      const strafing = p.x > left - lead - 2 && p.x < this.level.width - lead + 1;
+      const climbing = p.x >= this.level.width - lead + 1;
+      const targetY = climbing ? 16 : p.x > left - lead - 8 ? cruiseY : BARON.startY;
+      b.setLinearVelocity(Vec2(strafing ? BARON.strafeSpeed : BARON.speed, (targetY - p.y) * 2.5));
+      if (strafing && this.time - (h.firedAt ?? -99) >= BARON.fireEvery) {
+        h.firedAt = this.time;
+        const a = BARON.gunAngle + (Math.random() - 0.5) * 0.15;
+        const v = b.getLinearVelocity();
+        const gx = p.x + 1.3, gy = p.y - 0.3;
+        this.spawnShot('bullet', gx, gy, v.x + Math.cos(a) * BARON.bulletSpeed, Math.sin(a) * BARON.bulletSpeed);
+        this.events.push({ type: 'gun', x: gx, y: gy });
+      }
+      if (p.x > this.level.width + 20) {
+        h.act = 'done';
+        h.dead = true;
+        this.world.destroyBody(b);
+        this.activeHelper = null;
+      }
+      return;
     } else if (h.helper === 'cow') {
       if (h.act === 'run') {
         const front = p.x + h.w / 2;

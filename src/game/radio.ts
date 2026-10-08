@@ -7,13 +7,8 @@ import { addSongs, clearSongs, loadSongs } from './mymusic';
 
 export interface Track { title: string; file: string; artist?: string }
 
-export interface YouTubeTrack { id: string; title: string }
-
 export interface Station {
   id: string;
-  // Streams official videos from YouTube instead of local files. YouTube requires its
-  // player to stay visible (at least 200 x 200), so this station shows a small video window.
-  youtube?: YouTubeTrack[];
   name: string;
   freq: string;
   tagline: string;
@@ -57,22 +52,6 @@ export const STATIONS: Station[] = [
     ],
   },
   {
-    id: 'topgun', name: 'Top Gun Radio', freq: '86.0', tagline: 'Highway to the danger zone',
-    tracks: [],
-    // Official uploads from the artists' and record labels' YouTube channels.
-    youtube: [
-      { id: 'siwpn14IE7E', title: 'Danger Zone, Kenny Loggins' },
-      { id: 'b8OdyAq7sfk', title: 'Mighty Wings, Cheap Trick' },
-      { id: 'M3cd0zxd7EU', title: 'Playing with the Boys, Kenny Loggins' },
-      { id: 'Bx51eegLTY8', title: 'Take My Breath Away, Berlin' },
-      { id: 'xeQUxNf3G6k', title: 'Top Gun Anthem, Harold Faltermeyer' },
-      { id: '0Rtfi1J_b04', title: 'Heaven in Your Eyes, Loverboy' },
-      { id: '0VJ1NuAbEBI', title: 'Great Balls of Fire, Jerry Lee Lewis' },
-      { id: 'xbg1gkWb0Wo', title: "You've Lost That Lovin' Feelin', The Righteous Brothers" },
-    ],
-    djLines: [],
-  },
-  {
     id: 'mine', name: 'My Music', freq: '101.1', tagline: 'Your own songs, straight from your phone',
     tracks: [],
     djLines: [
@@ -112,10 +91,6 @@ class Radio {
   private emit() { this.listeners.forEach(f => f()); }
 
   get station() { return STATIONS[this.stationIndex]; }
-  // True while the Top Gun station should show its YouTube window.
-  get youtubeActive() { return this.on && !!this.station.youtube; }
-  setNowPlaying(title: string) { if (title !== this.nowPlaying) { this.nowPlaying = title; this.emit(); } }
-
   get myStation() { return STATIONS.find(x => x.id === 'mine')!; }
 
   // Load songs saved on this device into the My Music station.
@@ -193,13 +168,6 @@ class Radio {
   // Play the station's current song. Tuning in joins it partway through, like real radio.
   private playCurrent(midSong: boolean) {
     const st = this.station;
-    if (st.youtube) {
-      // The YouTube window takes over; the game's own player stays quiet.
-      this.audio?.pause();
-      this.nowPlaying = '';
-      this.emit();
-      return;
-    }
     if (st.tracks.length === 0) {
       // My Music with nothing added yet.
       this.audio?.pause();
@@ -262,7 +230,6 @@ class Radio {
   }
 
   private dj(text: string) {
-    if (this.station.youtube) return; // no talking over the music videos
     this.djText = text;
     this.emit();
     setTimeout(() => { if (this.djText === text) { this.djText = ''; this.emit(); } }, 8000);

@@ -6,7 +6,7 @@ import { AMMO, GRAVITY, Game, MAX_PULL, SLING, type Ent } from '../game/engine';
 import { LEVELS } from '../game/levels';
 import { useStore } from '../game/store';
 import { sfx } from '../game/audio';
-import { AmmoModel, BlockModel, CatapultModel, CowModel, DonkeyModel, PennyModel, PRONG_BACK, PRONG_FRONT, RangerModel, SlothModel, TurkeyModel, WallaceModel, type RangerPose } from './models';
+import { AmmoModel, BaronModel, BlockModel, CatapultModel, CowModel, DonkeyModel, PennyModel, PRONG_BACK, PRONG_FRONT, RangerModel, SlothModel, TurkeyModel, WallaceModel, type RangerPose } from './models';
 
 // The current game, so the HUD can read it (for example to know whether Penny is next).
 // targeting: the next tap on the farm picks where Ranger's Sky Paw lands.
@@ -179,7 +179,7 @@ function EntView({ ent, game, labels }: { ent: Ent; game: Game; labels: boolean 
     if (ent.dead || !outer.current || !inner.current) return;
     const p = ent.body.getPosition();
     outer.current.position.set(p.x, p.y, 0);
-    if (ent.kind === 'shot' && ent.ammo === 'penny') {
+    if (ent.kind === 'shot' && (ent.ammo === 'penny' || ent.ammo === 'bullet')) {
       // Penny points the way she is flying.
       const v = ent.body.getLinearVelocity();
       if (Math.hypot(v.x, v.y) > 1) inner.current.rotation.z = Math.atan2(v.y, v.x);
@@ -187,7 +187,9 @@ function EntView({ ent, game, labels }: { ent: Ent; game: Game; labels: boolean 
       inner.current.rotation.z = ent.body.getAngle();
     }
     if (ent.kind === 'helper') {
-      inner.current.rotation.z = 0;
+      // The Red Baron's plane pitches with its climb and dive.
+      const hv = ent.body.getLinearVelocity();
+      inner.current.rotation.z = ent.helper === 'sloth' ? Math.atan2(hv.y, hv.x) : 0;
       inner.current.scale.x = ent.facing ?? 1;
       const p2 = `${ent.act}`;
       if (p2 !== pose) setPose(p2);
@@ -425,6 +427,7 @@ function HelperLegs({ ent, game, pose }: { ent: Ent; game: Game; pose: string })
     const s = moving ? Math.round(game.time * 12 * 4) / 4 : 0;
     if (s !== step) setStep(s);
   });
+  if (ent.helper === 'sloth') return <group position={[0, ent.h / 2, 0]} scale={1.3}><BaronModel /></group>;
   if (ent.helper === 'cow') return <CowModel step={step} />;
   return <DonkeyModel step={step} kick={pose === 'kick'} />;
 }
@@ -436,7 +439,7 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
   const [version, setVersion] = useState(-1);
   const [popups, setPopups] = useState<Popup[]>([]);
   const aim = useRef<Aim>({ active: false, x: 0, y: 0 });
-  const cam = useRef({ x: 9999, pan: 0, introUntil: 0, returnAt: 0, mode: 'intro' as 'intro' | 'aim' | 'follow' });
+  const cam = useRef({ x: 9999, lift: 0, pan: 0, introUntil: 0, returnAt: 0, mode: 'intro' as 'intro' | 'aim' | 'follow' });
   const { camera, size, gl } = useThree();
   const popupId = useRef(0);
   const ended = useRef(false);
@@ -549,6 +552,10 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
         case 'helper':
           cam.current.mode = 'follow'; cam.current.pan = 0;
           if (e.helper === 'donkey') sfx.heehaw();
+          if (e.helper === 'sloth') {
+            sfx.plane();
+            pops.push({ id: ++popupId.current, x: 6, y: 7.5, text: 'THE RED BARON!', color: '#fca5a5' });
+          }
           break;
         case 'moo':
           sfx.moo();
@@ -558,6 +565,10 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
           sfx.kick(); sfx.heehaw();
           burst(e.x, e.y, ['#c2a27a', '#a08060'], 22, 6, 0.3);
           pops.push({ id: ++popupId.current, x: e.x, y: e.y + 2.2, text: 'BUCK!', color: '#fde68a' });
+          break;
+        case 'gun':
+          sfx.gun();
+          burst(e.x + 0.4, e.y, ['#fde047', '#f97316'], 2, 2, 0.12);
           break;
         case 'paw':
           sfx.bark(); sfx.yawn();
@@ -590,6 +601,13 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
       setTimeout(() => setPopups(p => p.filter(x => !ids.has(x.id))), 1200);
     }
 
+    // Smoke trail behind the Red Baron.
+    const baron = game.activeHelper;
+    if (baron && !baron.dead && baron.helper === 'sloth' && Math.random() < 0.6) {
+      const bp = baron.body.getPosition();
+      burst(bp.x - 1.6, bp.y + 0.1, ['#e5e7eb', '#d1d5db', '#f3f4f6'], 1, 0.6, 0.45);
+    }
+
     if (game.version !== version) setVersion(game.version);
     if (interactive) store.sync({ score: game.score, ammo: [...game.ammo], phase: game.phase, ready: game.ready, turkeysLeft: game.turkeysLeft, helperUsed: game.helperUsed, pawUsed: game.pawUsed });
 
@@ -614,7 +632,11 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
     target = Math.max(minX, Math.min(maxX, target));
     k.x += (target - k.x) * Math.min(1, dt * (k.mode === 'follow' ? 6 : 3));
     // Upright phones put the ground higher up, so there is less empty sky.
-    const y = H / 2 - H * (size.height > size.width ? 0.3 : 0.16);
+    // While the Red Baron flies, lift the view so his plane stays on screen above tall forts.
+    const baronUp = game.activeHelper && !game.activeHelper.dead && game.activeHelper.helper === 'sloth'
+      ? Math.min(2, Math.max(0, game.activeHelper.body.getPosition().y + 1.6 - (H - H * 0.16))) : 0;
+    k.lift += (baronUp - k.lift) * Math.min(1, dt * 4);
+    const y = H / 2 - H * (size.height > size.width ? 0.3 : 0.16) + k.lift;
     if (c.zoom !== zoom) { c.zoom = zoom; c.updateProjectionMatrix(); }
     // Straight side view. The library aims new cameras at the origin, which would tilt this one.
     if (c.rotation.x !== 0 || c.rotation.y !== 0 || c.rotation.z !== 0) c.rotation.set(0, 0, 0);

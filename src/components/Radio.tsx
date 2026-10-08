@@ -57,7 +57,6 @@ export default function RadioDial({ compact = false }: { compact?: boolean }) {
         <div className="max-w-[300px] text-right text-[11px] font-bold bg-black/45 rounded-xl px-3 py-1.5">
           {r.djText ? <span>DJ: {r.djText}</span>
             : mine && st.tracks.length === 0 ? <span>Add songs from your phone. They stay on this device.</span>
-            : st.youtube ? <span className="opacity-80">{r.nowPlaying ? `Now playing: ${r.nowPlaying}` : 'Tuning in... tap play in the video window if it does not start'}</span>
             : <span className="opacity-80">Now playing: "{r.nowPlaying}"{mine ? '' : ' by Kevin MacLeod'}</span>}
           {mine && (
             <div className="mt-1 flex justify-end gap-1">
