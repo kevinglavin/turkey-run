@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Mic, MicOff, Radio as RadioIcon } from 'lucide-react';
-import { radio } from '../game/radio';
+import { radio, MUSIC_CREDIT } from '../game/radio';
 
 const btn = 'pointer-events-auto active:scale-95 transition-transform';
 
@@ -42,7 +42,7 @@ export default function RadioDial({ compact = false }: { compact?: boolean }) {
       </div>
       {r.on && !compact && (
         <div className="max-w-[300px] text-right text-[11px] font-bold bg-black/45 rounded-xl px-3 py-1.5">
-          {r.djText ? <span>DJ: {r.djText}</span> : <span className="opacity-80">Now playing: "{r.nowPlaying}"</span>}
+          {r.djText ? <span>DJ: {r.djText}</span> : <span className="opacity-80">Now playing: "{r.nowPlaying}" by Kevin MacLeod</span>}
         </div>
       )}
     </div>

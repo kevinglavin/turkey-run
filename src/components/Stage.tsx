@@ -6,12 +6,13 @@ import { AMMO, GRAVITY, Game, MAX_PULL, SLING, type Ent } from '../game/engine';
 import { LEVELS } from '../game/levels';
 import { useStore } from '../game/store';
 import { sfx } from '../game/audio';
-import { AmmoModel, BlockModel, CatapultModel, CowModel, DonkeyModel, PennyModel, PRONG_BACK, PRONG_FRONT, RangerModel, SlothModel, TurkeyModel, WallaceModel } from './models';
+import { AmmoModel, BlockModel, CatapultModel, CowModel, DonkeyModel, PennyModel, PRONG_BACK, PRONG_FRONT, RangerModel, SlothModel, TurkeyModel, WallaceModel, type RangerPose } from './models';
 
 // The current game, so the HUD can read it (for example to know whether Penny is next).
-export const live: { game: Game | null } = { game: null };
+// targeting: the next tap on the farm picks where Ranger's Sky Paw lands.
+export const live: { game: Game | null; targeting: boolean } = { game: null, targeting: false };
 // Wallace cheers until this clock time (set when a turkey is knocked out).
-const crewState = { cheerUntil: 0 };
+const crewState = { cheerUntil: 0, howlUntil: 0 };
 
 const LEFT_EDGE = -8.6; // leftmost world x the camera shows (room for Ranger)
 
@@ -327,7 +328,6 @@ function Crew({ game }: { game: Game }) {
       <group position={[-3.2, 0, -0.4]}>
         <WallaceModel cheer={state.cheer} />
       </group>
-      <Ranger />
       {!state.pennyBusy && (
         <group ref={penny} position={[-1.7, 0.5, 0.6]}>
           <PennyModel />
@@ -342,27 +342,75 @@ function Crew({ game }: { game: Game }) {
   );
 }
 
-// Ranger the Pyrenees: lies about, and every so often rolls onto his back for a bit.
-function Ranger() {
-  const [belly, setBelly] = useState(0);
-  const roll = useRef({ next: 6 + Math.random() * 6, phase: 0 });
-  useFrame((s) => {
+// Ranger the Pyrenees lives between the catapult and the fort. He mostly lies about,
+// sometimes rolls onto his back, now and then gets up and wanders to a new spot,
+// and howls when his magic Sky Paw is used.
+type RangerAct = 'lie' | 'roll' | 'stand' | 'walk' | 'sniff' | 'howl';
+
+function Ranger({ game }: { game: Game }) {
+  const group = useRef<Group>(null);
+  // Keep clear of the catapult and of the fort.
+  const fortLeft = Math.min(...game.level.blocks.map(b => b.x - b.w / 2), ...game.level.turkeys.map(t => t.x - 0.6));
+  const minX = 2.5;
+  const maxX = Math.max(minX + 1, Math.min(13, fortLeft - 3));
+  const st = useRef({ act: 'lie' as RangerAct, until: 4 + Math.random() * 4, x: (minX + maxX) / 2, target: 0, facing: 1, howlSeen: 0 });
+  const [view, setView] = useState({ pose: 'lie' as RangerPose, step: 0, belly: 0, facing: 1, say: '' });
+
+  useFrame((s, dt) => {
+    const k = st.current;
     const t = s.clock.elapsedTime;
-    const r = roll.current;
-    let target = 0;
-    if (t > r.next) {
-      const into = t - r.next;
-      target = into < 0.6 ? into / 0.6 : into < 3 ? 1 : into < 3.6 ? 1 - (into - 3) / 0.6 : 0;
-      if (into >= 3.6) r.next = t + 8 + Math.random() * 8;
+    // Howl when the Sky Paw is called, whatever he was doing.
+    if (crewState.howlUntil > t && k.act !== 'howl') { k.act = 'howl'; k.until = crewState.howlUntil; }
+    if (t > k.until) {
+      const roll = Math.random();
+      switch (k.act) {
+        case 'lie':
+          if (roll < 0.35) { k.act = 'roll'; k.until = t + 3.2; }
+          else if (roll < 0.75) { k.act = 'stand'; k.until = t + 0.8; }
+          else k.until = t + 4 + Math.random() * 5;
+          break;
+        case 'roll': k.act = 'lie'; k.until = t + 5 + Math.random() * 6; break;
+        case 'stand':
+          k.act = 'walk';
+          k.target = minX + Math.random() * (maxX - minX);
+          k.until = t + 20;
+          break;
+        case 'sniff': k.act = 'lie'; k.until = t + 6 + Math.random() * 8; break;
+        case 'howl': k.act = 'lie'; k.until = t + 4 + Math.random() * 4; break;
+        case 'walk': k.act = 'sniff'; k.until = t + 1.5; break;
+      }
     }
-    if (Math.abs(target - belly) > 0.04) setBelly(target);
+    if (k.act === 'walk') {
+      const d = k.target - k.x;
+      k.facing = d >= 0 ? 1 : -1;
+      const stepLen = Math.min(Math.abs(d), 1.3 * dt);
+      k.x += Math.sign(d) * stepLen;
+      if (Math.abs(d) < 0.05) { k.act = 'sniff'; k.until = t + 1.5; }
+    }
+    if (group.current) group.current.position.x = k.x;
+
+    const pose: RangerPose = k.act === 'walk' ? 'walk' : k.act === 'howl' ? 'howl' : k.act === 'stand' || k.act === 'sniff' ? 'stand' : 'lie';
+    const step = k.act === 'walk' ? Math.round(t * 7 * 4) / 4 : 0;
+    let belly = 0;
+    if (k.act === 'roll') {
+      const into = 3.2 - (k.until - t);
+      belly = into < 0.6 ? into / 0.6 : into < 2.6 ? 1 : Math.max(0, 1 - (into - 2.6) / 0.6);
+      belly = Math.round(belly * 10) / 10;
+    }
+    const say = k.act === 'howl' ? 'AROOOOO!' : k.act === 'roll' && belly > 0.8 ? 'belly rub?' : k.act === 'sniff' ? 'sniff sniff' : '';
+    if (pose !== view.pose || step !== view.step || belly !== view.belly || k.facing !== view.facing || say !== view.say) {
+      setView({ pose, step, belly, facing: k.facing, say });
+    }
   });
+
   return (
-    <group position={[-7.2, 0, -1.4]}>
-      <RangerModel belly={belly} />
-      {belly > 0.5 && (
-        <Html position={[0.4, 2.1, 0]} center wrapperClass="pointer-events-none" zIndexRange={[5, 0]}>
-          <div className="text-xs font-black text-white [text-shadow:0_1px_3px_#000] whitespace-nowrap">belly rub?</div>
+    <group ref={group} position={[st.current.x, 0, -0.9]}>
+      <group scale={[view.facing * 0.95, 0.95, 0.95]}>
+        <RangerModel pose={view.pose} step={view.step} belly={view.belly} />
+      </group>
+      {view.say && (
+        <Html position={[0, 2.5, 0]} center wrapperClass="pointer-events-none" zIndexRange={[5, 0]}>
+          <div className="text-xs font-black text-white [text-shadow:0_1px_3px_#000] whitespace-nowrap">{view.say}</div>
         </Html>
       )}
     </group>
@@ -395,6 +443,7 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
 
   useEffect(() => {
     live.game = game;
+    live.targeting = false;
     particles.length = 0;
     return () => { if (live.game === game) live.game = null; };
   }, [game]);
@@ -423,6 +472,11 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
     const down = (e: PointerEvent) => {
       const w = toWorld(e.clientX, e.clientY);
       if (game.phase === 'flying') { game.useAbility(); return; }
+      if (live.targeting && game.phase === 'aiming') {
+        live.targeting = false;
+        game.magicPaw(Math.max(3, Math.min(game.level.width + 2, w.x)));
+        return;
+      }
       const nearSling = Math.hypot(w.x - SLING.x, w.y - SLING.y) < 2.6;
       if (game.phase === 'aiming' && game.ready && nearSling) {
         mode = 'aim';
@@ -505,6 +559,12 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
           burst(e.x, e.y, ['#c2a27a', '#a08060'], 22, 6, 0.3);
           pops.push({ id: ++popupId.current, x: e.x, y: e.y + 2.2, text: 'BUCK!', color: '#fde68a' });
           break;
+        case 'paw':
+          sfx.bark(); sfx.yawn();
+          crewState.howlUntil = state.clock.elapsedTime + 2.2;
+          cam.current.mode = 'follow'; cam.current.pan = 0;
+          pops.push({ id: ++popupId.current, x: e.x, y: 3.5, text: "Ranger's Sky Paw!", color: '#bfdbfe' });
+          break;
         case 'grab':
           sfx.grab();
           pops.push({ id: ++popupId.current, x: e.x, y: e.y + 1, text: 'Gotcha.', color: '#e7e5e4' });
@@ -531,7 +591,7 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
     }
 
     if (game.version !== version) setVersion(game.version);
-    if (interactive) store.sync({ score: game.score, ammo: [...game.ammo], phase: game.phase, ready: game.ready, turkeysLeft: game.turkeysLeft, helperUsed: game.helperUsed });
+    if (interactive) store.sync({ score: game.score, ammo: [...game.ammo], phase: game.phase, ready: game.ready, turkeysLeft: game.turkeysLeft, helperUsed: game.helperUsed, pawUsed: game.pawUsed });
 
     // ---- camera ----
     const c = camera as OrthographicCamera;
@@ -569,6 +629,7 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
       </group>
       <SlingLoad aim={aim} game={game} />
       <Crew game={game} />
+      <Ranger game={game} />
       <Trajectory aim={aim} game={game} />
       {ents.map(e => <EntView key={e.id} ent={e} game={game} labels={interactive} />)}
       <Particles />

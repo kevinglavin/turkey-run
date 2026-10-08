@@ -6,6 +6,7 @@ import { AMMO, HELPERS, type AmmoType, type HelperType } from '../game/engine';
 import { setSoundEnabled, sfx, unlockAudio } from '../game/audio';
 import { live } from './Stage';
 import RadioDial from './Radio';
+import { MUSIC_CREDIT } from '../game/radio';
 
 const btn = 'pointer-events-auto active:scale-95 transition-transform';
 
@@ -16,6 +17,7 @@ const AMMO_ICON: Record<AmmoType, React.ReactNode> = {
   balloon: '💧',
   penny: '🐕',
   sloth: '🦥',
+  paw: '🐾',
 };
 
 const HELPER_ICON: Record<HelperType, string> = { donkey: '🫏', cow: '🐂', sloth: '🦥' };
@@ -111,6 +113,7 @@ function Levels() {
           );
         })}
       </div>
+      <p className="mt-auto pt-4 text-[10px] opacity-70 text-center">{MUSIC_CREDIT}.</p>
     </div>
   );
 }
@@ -127,6 +130,8 @@ function Hud() {
   const attempt = useStore(s => s.attempt);
   const helperUsed = useStore(s => s.helperUsed);
   const [picking, setPicking] = useState(false);
+  const pawUsed = useStore(s => s.pawUsed);
+  const [targeting, setTargeting] = useState(false);
   const level = LEVELS[levelIndex];
   const [introDone, setIntroDone] = useState(false);
   const [aimedOnce, setAimedOnce] = useState(false);
@@ -137,7 +142,17 @@ function Hud() {
     return () => clearTimeout(t);
   }, [level, attempt]);
   useEffect(() => { if (phase === 'flying') setAimedOnce(true); }, [phase]);
-  useEffect(() => { setPicking(false); }, [attempt, levelIndex]);
+  useEffect(() => { setPicking(false); setTargeting(false); live.targeting = false; }, [attempt, levelIndex]);
+  // The stage clears live.targeting once the paw is placed; mirror that here.
+  useEffect(() => { if (pawUsed || phase !== 'aiming') { setTargeting(false); live.targeting = false; } }, [pawUsed, phase]);
+  const canPaw = phase === 'aiming' && ready && !pawUsed && !result;
+  const aimPaw = () => {
+    sfx.click();
+    const on = !targeting;
+    setTargeting(on);
+    live.targeting = on;
+    setPicking(false);
+  };
   const canCall = phase === 'aiming' && ready && !helperUsed && !result;
   const outOfAmmo = phase === 'aiming' && ammo.length === 0 && !result;
   const call = (h: HelperType) => { sfx.click(); live.game?.callHelper(h); setPicking(false); };
@@ -166,7 +181,7 @@ function Hud() {
       </div>
 
       {!result && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-16 flex flex-col items-center gap-2 w-[min(92vw,520px)]">
+        <div className="absolute left-3 top-16 flex flex-col items-start gap-2 w-[min(55vw,380px)]">
           {!introDone && (
             <div className="bg-black/55 rounded-2xl px-4 py-2 text-center text-sm font-bold">{level.intro}</div>
           )}
@@ -176,6 +191,11 @@ function Hud() {
             </div>
           )}
           {canTap && <SpecialHint />}
+          {targeting && (
+            <div className="bg-sky-600/90 rounded-full px-5 py-2 text-sm font-black uppercase animate-pulse text-center">
+              Tap the farm where Ranger's magic paw should land
+            </div>
+          )}
           {outOfAmmo && (
             <div className="pointer-events-auto bg-black/65 rounded-2xl px-4 py-3 text-center flex flex-col gap-2 items-center">
               <div className="text-sm font-bold">Out of ammo, but a farm helper is still free.</div>
@@ -188,7 +208,7 @@ function Hud() {
         </div>
       )}
 
-      {(canCall || picking) && (
+      {(canCall || picking || canPaw) && (
         <div className="absolute right-3 bottom-3 flex flex-col items-end gap-2">
           {picking && (
             <div className="pointer-events-auto pop-in bg-[#3b2a1e]/95 border-2 border-orange-300 rounded-2xl p-2 flex flex-col gap-1.5 w-[250px]">
@@ -204,12 +224,21 @@ function Hud() {
               ))}
             </div>
           )}
-          {canCall && (
-            <button onClick={() => { sfx.click(); setPicking(p => !p); }}
-              className={`${btn} pointer-events-auto h-12 px-4 rounded-full bg-orange-500 border-4 border-orange-200 font-black uppercase text-sm flex items-center gap-1 shadow-lg ${outOfAmmo ? 'animate-bounce' : ''}`}>
-              <span className="text-lg">🫏🐂🦥</span> Helpers
-            </button>
-          )}
+          <div className="flex gap-2">
+            {canPaw && (
+              <button onClick={aimPaw} title="Ranger's Sky Paw: once per level, a giant magic paw stomps where you tap"
+                className={`${btn} pointer-events-auto h-12 px-4 rounded-full border-4 font-black uppercase text-sm flex items-center gap-1 shadow-lg ${
+                  targeting ? 'bg-sky-500 border-white' : 'bg-sky-700 border-sky-200'}`}>
+                <span className="text-lg">🐾</span> {targeting ? 'Cancel' : 'Ranger'}
+              </button>
+            )}
+            {canCall && (
+              <button onClick={() => { sfx.click(); setPicking(p => !p); setTargeting(false); live.targeting = false; }}
+                className={`${btn} pointer-events-auto h-12 px-4 rounded-full bg-orange-500 border-4 border-orange-200 font-black uppercase text-sm flex items-center gap-1 shadow-lg ${outOfAmmo ? 'animate-bounce' : ''}`}>
+                <span className="text-lg">🫏🐂🦥</span> Helpers
+              </button>
+            )}
+          </div>
         </div>
       )}
 

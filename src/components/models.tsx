@@ -192,37 +192,133 @@ export function PennyModel({ flying = false, wag = 0 }: { flying?: boolean; wag?
   );
 }
 
-// ---------- Ranger (great white Pyrenees, mostly lying down) ----------
+// ---------- Ranger (great white Pyrenees) ----------
 
-const RANGER = '#f3efe6';
-const RANGER_SHADE = '#e2dbcd';
+const RANGER = '#f6f3ec';
+const RANGER_SHADE = '#e7e0d3';
+const RANGER_EAR = '#ece2d0';
 
-export function RangerModel({ belly = 0 }: { belly?: number }) {
-  // Lying down, facing right. belly 0..1 rolls him onto his back.
-  return (
-    <group rotation={[belly * Math.PI * 0.9, 0, 0]} position={[0, 0.55 + belly * 0.1, 0]}>
-      {/* Big fluffy body */}
-      <Pill p={[0, 0, 0]} r={0.55} len={1.1} c={RANGER} rot={[0, 0, Math.PI / 2]} />
-      <Ball p={[-0.2, 0.2, 0.3]} r={0.45} c={RANGER_SHADE} s={[1.4, 0.8, 0.6]} />
-      {/* Plumed tail */}
-      <Pill p={[-1.15, -0.25, 0.1]} r={0.2} len={0.5} c={RANGER} rot={[0.4, 0, 1.2]} />
-      {/* Front paws stretched out */}
-      <Pill p={[0.95, -0.38, 0.3]} r={0.14} len={0.55} c={RANGER} rot={[0, 0, Math.PI / 2]} />
-      <Pill p={[0.95, -0.38, -0.2]} r={0.14} len={0.55} c={RANGER} rot={[0, 0, Math.PI / 2]} />
-      {/* Back legs (point up when he rolls over) */}
-      <Pill p={[-0.6, -0.4, 0.35]} r={0.16} len={0.35} c={RANGER_SHADE} rot={[0, 0, 1.3]} />
-      {/* Head resting on the paws */}
-      <group position={[0.85, 0.12, 0.05]}>
-        <Ball p={[0, 0, 0]} r={0.36} c={RANGER} s={[1.1, 1, 1]} />
-        <Ball p={[0.3, -0.1, 0]} r={0.2} c={RANGER} s={[1.3, 0.85, 1]} />
-        <Ball p={[0.53, -0.07, 0.02]} r={0.07} c="#1c1917" />
-        {/* Sleepy half-closed eyes */}
-        <Eye p={[0.22, 0.1, 0.27]} r={0.06} look={[1, -0.2]} squint />
-        <Eye p={[0.28, 0.1, 0.1]} r={0.055} look={[1, -0.2]} squint />
-        {/* Floppy ears */}
-        <Ball p={[-0.1, 0.0, 0.33]} r={0.17} c={RANGER_SHADE} s={[0.7, 1.3, 0.4]} />
-        <Ball p={[-0.1, 0.0, -0.33]} r={0.17} c={RANGER_SHADE} s={[0.7, 1.3, 0.4]} />
+export type RangerPose = 'lie' | 'stand' | 'walk' | 'howl';
+
+// A big, fluffy Pyrenees. Faces right. step drives the walking legs,
+// belly (0..1) rolls him onto his back while lying down.
+export function RangerModel({ pose = 'lie', step = 0, belly = 0 }: { pose?: RangerPose; step?: number; belly?: number }) {
+  const lying = pose === 'lie';
+  const walking = pose === 'walk';
+  const swing = (phase: number) => (walking ? Math.sin(step + phase) * 0.32 : 0);
+  const y = lying ? 0.5 : 1.05; // height of the body's center
+  const head = pose === 'howl' ? 0.85 : lying ? -0.1 : 0.05;
+
+  const standingLeg = (x: number, z: number, phase: number, hind: boolean) => (
+    <group key={`${x}${z}`} position={[x, y - 0.15, z]} rotation={[0, 0, swing(phase)]}>
+      {/* Fluffy upper leg ("trousers" on the hind legs) */}
+      <Ball p={[hind ? -0.05 : 0, -0.12, 0]} r={hind ? 0.24 : 0.17} c={RANGER} s={[1, 1.3, 0.9]} />
+      <Pill p={[0, -0.5, 0]} r={0.12} len={0.5} c={RANGER} />
+      <Ball p={[0.06, -0.86, 0]} r={0.13} c={RANGER} s={[1.5, 0.6, 1.1]} />
+    </group>
+  );
+
+  const body = (
+    <group>
+      {lying ? (
+        <>
+          {/* Front legs stretched forward, hind legs tucked */}
+          {[0.2, -0.2].map(z => (
+            <group key={z} position={[0.85, 0.16, z]}>
+              <Pill p={[0, 0, 0]} r={0.13} len={0.55} c={RANGER} rot={[0, 0, Math.PI / 2]} />
+              <Ball p={[0.42, -0.02, 0]} r={0.14} c={RANGER} s={[1.4, 0.7, 1.1]} />
+            </group>
+          ))}
+          <Ball p={[-0.55, 0.3, 0.25]} r={0.3} c={RANGER_SHADE} s={[1.5, 0.85, 0.7]} />
+        </>
+      ) : (
+        <>
+          {standingLeg(0.5, 0.2, 0, false)}
+          {standingLeg(0.5, -0.2, Math.PI, false)}
+          {standingLeg(-0.55, 0.2, Math.PI, true)}
+          {standingLeg(-0.55, -0.2, 0, true)}
+        </>
+      )}
+
+      {/* One continuous fluffy body: chest, middle, rump, and a soft underside */}
+      <Ball p={[0.48, y, 0]} r={0.46} c={RANGER} s={[1, 1.05, 0.95]} />
+      <Ball p={[0, y + 0.02, 0]} r={0.44} c={RANGER} s={[1.25, 0.95, 0.95]} />
+      <Ball p={[-0.55, y + 0.02, 0]} r={0.43} c={RANGER} s={[1, 1, 0.95]} />
+      <Ball p={[0, y - 0.3, 0]} r={0.3} c={RANGER_SHADE} s={[2.6, 0.5, 1]} />
+      {/* Thick mane around the neck */}
+      <Ball p={[0.72, y + 0.28, 0]} r={0.38} c={RANGER} s={[0.85, 1.1, 1.05]} />
+
+      {/* Tail: a big plume, carried low with a curl at the end, up over the back when excited */}
+      {walking || pose === 'howl' ? (
+        // Feathery plume arching up and over toward the back
+        <group position={[-0.9, y + 0.1, 0]}>
+          <Pill p={[-0.12, 0.25, 0]} r={0.15} len={0.35} c={RANGER} rot={[0, 0, 0.35]} />
+          <Pill p={[-0.05, 0.55, 0]} r={0.16} len={0.25} c={RANGER_SHADE} rot={[0, 0, -0.6]} />
+        </group>
+      ) : (
+        <group position={[-0.95, lying ? 0.35 : y - 0.05, 0.05]}>
+          <Pill p={[-0.12, -0.25, 0]} r={0.15} len={0.45} c={RANGER} rot={[0, 0, lying ? 1.35 : 0.25]} />
+          <Ball p={lying ? [-0.55, -0.15, 0] : [-0.15, -0.6, 0]} r={0.15} c={RANGER_SHADE} />
+        </group>
+      )}
+
+      {/* Head: broad skull, longer muzzle, dark almond eyes, low floppy ears */}
+      <group position={[lying ? 1.1 : 1.02, lying ? 0.66 : y + 0.55, 0]} rotation={[0, 0, head]}>
+        <Ball p={[0, 0, 0]} r={0.3} c={RANGER} s={[1.05, 0.95, 1]} />
+        <Pill p={[0.3, -0.1, 0]} r={0.13} len={0.22} c={RANGER} rot={[0, 0, Math.PI / 2]} />
+        <Ball p={[0.53, -0.07, 0]} r={0.065} c="#16120f" />
+        <mesh position={[0.36, -0.2, 0.06]}>
+          <boxGeometry args={[0.24, 0.018, 0.02]} />
+          <meshStandardMaterial color="#3b302a" />
+        </mesh>
+        {[[0.18, 0.07, 0.22], [0.2, 0.07, -0.22]].map(([ex, ey, ez], i) => (
+          <group key={i} position={[ex, ey, ez]} scale={[1.3, lying ? 0.45 : 0.85, 1]}>
+            <Ball p={[0, 0, 0]} r={0.05} c="#2b1d14" />
+            <Ball p={[0.012, 0.012, ez > 0 ? 0.04 : -0.04]} r={0.013} c="#ffffff" />
+          </group>
+        ))}
+        {[1, -1].map(side => (
+          <Ball key={side} p={[-0.08, -0.1, 0.27 * side]} r={0.16} c={RANGER_EAR} s={[0.7, 1.35, 0.35]} />
+        ))}
       </group>
+    </group>
+  );
+
+  // Rolling over pivots around the middle of his body so he stays above the ground.
+  if (!lying || belly === 0) return body;
+  return (
+    <group position={[0, 0.55, 0]} rotation={[belly * Math.PI * 0.9, 0, 0]}>
+      <group position={[0, -0.55, 0]}>{body}</group>
+    </group>
+  );
+}
+
+// Ranger's magic: a giant glowing paw. Sized for radius 1.1.
+export function PawModel() {
+  const glow = '#dbeafe';
+  return (
+    <group rotation={[0, 0, Math.PI]}>
+      <mesh>
+        <sphereGeometry args={[0.75, 24, 16]} />
+        <meshStandardMaterial color={glow} emissive="#93c5fd" emissiveIntensity={0.7} transparent opacity={0.9} />
+      </mesh>
+      {[[-0.6, 0.65], [-0.2, 0.9], [0.2, 0.9], [0.6, 0.65]].map(([x, y], i) => (
+        <mesh key={i} position={[x, y, 0.1]}>
+          <sphereGeometry args={[0.28, 16, 12]} />
+          <meshStandardMaterial color={glow} emissive="#93c5fd" emissiveIntensity={0.7} transparent opacity={0.9} />
+        </mesh>
+      ))}
+      {/* Pink toe beans */}
+      <mesh position={[0, -0.05, 0.55]} scale={[1.2, 0.9, 0.4]}>
+        <sphereGeometry args={[0.3, 16, 12]} />
+        <meshStandardMaterial color="#f9a8d4" emissive="#f472b6" emissiveIntensity={0.4} />
+      </mesh>
+      {[[-0.6, 0.65], [-0.2, 0.9], [0.2, 0.9], [0.6, 0.65]].map(([x, y], i) => (
+        <mesh key={i} position={[x, y, 0.32]} scale={[1, 1, 0.4]}>
+          <sphereGeometry args={[0.12, 12, 10]} />
+          <meshStandardMaterial color="#f9a8d4" emissive="#f472b6" emissiveIntensity={0.4} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -421,6 +517,7 @@ export const PRONG_FRONT: V3 = [0.32, 2.55, 0.4];
 export function AmmoModel({ type, r }: { type: AmmoType; r: number }) {
   if (type === 'penny') return <group scale={r / 0.5}><PennyModel flying /></group>;
   if (type === 'sloth') return <group scale={r / 0.5}><SlothModel /></group>;
+  if (type === 'paw') return <group scale={r / 1.1}><PawModel /></group>;
   if (type === 'pumpkin') {
     return (
       <group scale={r / 0.55}>

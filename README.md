@@ -15,10 +15,14 @@ Dave, Martin, Kevin, Elliot and Bob have built forts on Wallace's farm. Load the
   - Donkey: trots up to the fort, turns around, and bucks it.
   - Longhorn: bulldozes everything along the ground until a hill stops her.
   - Sloth: goes in the catapult. She grabs whatever she hits, yawns, and nearby turkeys nod off.
-- **Radio:** tap the radio button for four stations of music made live in the browser (no music files):
-  Gobble FM, Radio Free Farmyard, Turkey Trot 80s and Classic Cluck. A DJ chats and reads fake ads
-  between songs, out loud if the device has a speech voice (the microphone button turns the voice off).
-- Ranger the Pyrenees lies by the catapult and rolls over now and then. That is all he does.
+- **Radio:** tap the radio button. Three stations of real recordings: Gobble FM (country and bluegrass),
+  Turkey Trot 80s (synth) and Radio Free Farmyard (easy listening). Tuning in drops you partway into a song,
+  like GTA. A DJ chats and reads fake ads between songs, out loud if the device has a speech voice
+  (the microphone button turns the voice off). Music by Kevin MacLeod, see `public/radio/CREDITS.txt`.
+- **Ranger** the Great Pyrenees lives between the catapult and the fort. He lies about, rolls over,
+  and now and then wanders to a new spot for a sniff.
+- **Ranger's Sky Paw (once per level):** tap the Ranger button, then tap the farm. He howls, and a giant
+  magic paw stomps down from the sky on that spot.
 - Knock out every turkey to clear the level. Unused ammo is worth 10,000 points each.
 - Ten levels, up to three stars each. Each level unlocks when you beat the one before it.
 
@@ -44,8 +48,13 @@ and the best score it found. Set the level's 2-star and 3-star scores to about 5
 
 - `src/game/engine.ts` game rules on top of the planck (Box2D) physics engine: launching, damage, knockouts, scoring, and the farm helpers. No graphics, so the bot can run it.
 - `src/game/levels.ts` the ten levels.
-- `src/game/radio.ts` the radio: generated music per station, tuning static, DJ lines and speech.
+- `src/game/radio.ts` the radio: stations and playlists, tuning static, DJ lines and speech. The MP3s are in `public/radio/`.
 - `src/game/store.ts` menus, saved stars and best scores (stored on the device).
 - `src/components/Stage.tsx` the 3D scene: camera, catapult controls, particles. One canvas is kept for the whole session, because rebuilding it crashes phone GPUs.
 - `src/components/models.tsx` the clay-style characters, ammo and blocks.
 - `src/components/Screens.tsx` title, level select, in-game buttons, and the results card.
+
+## Credits
+
+Music by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0
+(https://creativecommons.org/licenses/by/4.0/). Track list in `public/radio/CREDITS.txt`.

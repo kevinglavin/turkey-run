@@ -12,7 +12,7 @@ const STEP = 1 / 60;
 const SETTLE_SECONDS = 1.2; // ignore damage while a fresh level settles
 const MAX_TURN_SECONDS = 7;
 
-export type AmmoType = 'ball' | 'pumpkin' | 'balloon' | 'penny' | 'sloth';
+export type AmmoType = 'ball' | 'pumpkin' | 'balloon' | 'penny' | 'sloth' | 'paw';
 export type HelperType = 'donkey' | 'cow' | 'sloth';
 
 export const HELPERS: Record<HelperType, { label: string; tip: string }> = {
@@ -27,7 +27,10 @@ export const AMMO: Record<AmmoType, { r: number; density: number; restitution: n
   balloon: { r: 0.42, density: 2.0, restitution: 0.2, label: 'Water balloon', tip: 'Tap in the air to split it into three.' },
   penny: { r: 0.5, density: 2.6, restitution: 0.2, label: 'Penny', tip: 'Tap in the air and she zooms forward.' },
   sloth: { r: 0.5, density: 1.6, restitution: 0, label: 'Sloth', tip: 'Grabs on, then yawns. Nearby turkeys fall asleep.' },
+  // Ranger's magic: never in the ammo list, it drops from the sky where the player taps.
+  paw: { r: 1.1, density: 5, restitution: 0, label: "Ranger's Sky Paw", tip: 'A giant magic paw stomps down wherever you tap.' },
 };
+const PAW_DROP = { height: 15, speed: 22 };
 
 const DONKEY = { w: 1.7, h: 1.4, speed: 8, kickRange: 4.5, kickDamage: 34 };
 const COW = { w: 2.6, h: 1.6, speed: 7, damageMult: 1.4 };
@@ -88,6 +91,7 @@ export type GameEvent =
   | { type: 'moo' }
   | { type: 'grab'; x: number; y: number }
   | { type: 'yawn'; x: number; y: number; radius: number }
+  | { type: 'paw'; x: number }
   | { type: 'end'; won: boolean };
 
 export type Phase = 'aiming' | 'flying' | 'over';
@@ -111,6 +115,7 @@ export class Game {
   activeShot: Ent | null = null;
   abilityUsed = false;
   helperUsed = false;
+  pawUsed = false;
   activeHelper: Ent | null = null;
   private pendingGrab: Ent | null = null;
 
@@ -280,6 +285,21 @@ export class Game {
     this.phase = 'flying';
     this.turnStart = this.time;
     this.quietFor = 0;
+    return true;
+  }
+
+  // Ranger's magic, once per level: a giant paw stomps down from the sky at x.
+  magicPaw(x: number) {
+    if (this.phase !== 'aiming' || !this.ready || this.pawUsed) return false;
+    this.pawUsed = true;
+    const paw = this.spawnShot('paw', x, PAW_DROP.height, 0, -PAW_DROP.speed);
+    paw.body.setAngularDamping(5);
+    this.activeShot = paw;
+    this.phase = 'flying';
+    this.turnStart = this.time;
+    this.quietFor = 0;
+    this.abilityUsed = true;
+    this.events.push({ type: 'paw', x });
     return true;
   }
 
