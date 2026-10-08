@@ -6,6 +6,7 @@ import { AMMO, HELPERS, type AmmoType, type HelperType } from '../game/engine';
 import { setSoundEnabled, sfx, unlockAudio } from '../game/audio';
 import { live } from './Stage';
 import RadioDial from './Radio';
+import YouTubeRadio from './YouTubeRadio';
 import { MUSIC_CREDIT } from '../game/radio';
 
 const btn = 'pointer-events-auto active:scale-95 transition-transform';
@@ -321,6 +322,7 @@ export default function Screens() {
   return (
     // z-30 keeps menus above the turkey name labels, which the 3D scene also draws as HTML.
     <div className="absolute inset-0 pointer-events-none z-30">
+      <YouTubeRadio />
       {screen === 'title' && <Title />}
       {screen === 'levels' && <Levels />}
       {screen === 'play' && (
