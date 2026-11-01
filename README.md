@@ -13,7 +13,8 @@ Dave, Martin, Kevin, Elliot and Bob have built forts on Wallace's farm. Load the
   - Penny: tap while she flies and she zooms forward.
 - **Farm helpers (one per level):** tap Helpers and pick one.
   - Donkey: trots up to the fort, turns around, and bucks it.
-  - Longhorn: bulldozes everything along the ground until a hill stops her.
+  - Longhorn: stampedes through the fort, runs right over every turkey in her path and sends them flying
+    in a storm of feathers. Only a hill stops her.
   - Red Baron Sloth: roars in on his red triplane and strafes the fort with his machine guns.
 - **Radio:** tap the radio button. Three stations of real recordings: Gobble FM (country and bluegrass),
   Turkey Trot 80s (synth) and Radio Free Farmyard (easy listening). Tuning in drops you partway into a song,

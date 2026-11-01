@@ -20,7 +20,7 @@ const LEFT_EDGE = -8.6; // leftmost world x the camera shows (room for Ranger)
 
 interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; size: number; color: Color; spin: number }
 const particles: Particle[] = [];
-const MAX_PARTICLES = 260;
+const MAX_PARTICLES = 500;
 
 function burst(x: number, y: number, colors: string[], n: number, speed = 5, size = 0.18) {
   for (let i = 0; i < n; i++) {
@@ -560,6 +560,13 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
         case 'moo':
           sfx.moo();
           pops.push({ id: ++popupId.current, x: 0, y: 3.2, text: 'MOOOOO!', color: '#fecaca' });
+          break;
+        case 'trample':
+          sfx.gobble(); sfx.thud(30);
+          // A storm of feathers, thrown high.
+          burst(e.x, e.y, ['#5c3519', '#a4642c', '#f3e7cf', '#d8262c', '#7c4a24'], 45, 10, 0.3);
+          burst(e.x, e.y + 1, ['#f3e7cf', '#a4642c'], 25, 5, 0.2);
+          pops.push({ id: ++popupId.current, x: e.x, y: e.y + 2.4, text: 'TRAMPLED!', color: '#fecaca' });
           break;
         case 'kick':
           sfx.kick(); sfx.heehaw();

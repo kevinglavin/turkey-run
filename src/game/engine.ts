@@ -17,7 +17,7 @@ export type HelperType = 'donkey' | 'cow' | 'sloth';
 
 export const HELPERS: Record<HelperType, { label: string; tip: string }> = {
   donkey: { label: 'Donkey', tip: 'Trots up to the fort, turns around, and bucks it.' },
-  cow: { label: 'Longhorn', tip: 'Bulldozes everything along the ground.' },
+  cow: { label: 'Longhorn', tip: 'Stampedes through the fort and tramples every turkey in her path.' },
   sloth: { label: 'Red Baron Sloth', tip: 'Roars in on his red triplane and strafes the fort with his machine guns.' },
 };
 
@@ -35,7 +35,9 @@ export const AMMO: Record<AmmoType, { r: number; density: number; restitution: n
 const PAW_DROP = { height: 15, speed: 22 };
 
 const DONKEY = { w: 1.7, h: 1.4, speed: 8, kickRange: 4.5, kickDamage: 34 };
-const COW = { w: 2.6, h: 1.6, speed: 7, damageMult: 1.4 };
+const COW = { w: 2.6, h: 1.6, speed: 9, damageMult: 1.4 };
+// The longhorn's stampede: turkeys she reaches (up to maxTurkeys per run) are run right over and sent flying.
+const TRAMPLE = { reach: 3.2, ahead: 0.7, maxRun: 8, maxTurkeys: 2 };
 const YAWN = { delay: 1.3, radius: 4.5, damage: 60 };
 // The Red Baron's strafing run: flies in from the left, dives over the fort firing, climbs away.
 // Slowed down so the run is easier to watch; it fires half as often so the fort takes about the same damage.
@@ -86,6 +88,7 @@ export interface Ent {
   grabbedAt?: number;
   yawned?: boolean;
   kicked?: boolean;
+  trampled?: boolean; // already run over by the longhorn
   firedAt?: number;
 }
 
@@ -99,6 +102,7 @@ export type GameEvent =
   | { type: 'helper'; helper: HelperType }
   | { type: 'kick'; x: number; y: number }
   | { type: 'moo' }
+  | { type: 'trample'; x: number; y: number }
   | { type: 'grab'; x: number; y: number }
   | { type: 'yawn'; x: number; y: number; radius: number }
   | { type: 'paw'; x: number }
@@ -128,6 +132,7 @@ export class Game {
   helperUsed = false;
   pawUsed = false;
   pawReady = false; // Ranger is awake and offering his paw this turn
+  private trampledThisRun = 0;
   activeHelper: Ent | null = null;
   private pendingGrab: Ent | null = null;
 
@@ -302,7 +307,7 @@ export class Game {
       kind: 'helper', helper: type, shape: 'box', w: size.w, h: size.h, r: 0, hp: Infinity, body,
       act: 'run', actAt: this.time, facing: 1,
     });
-    if (type === 'cow') this.events.push({ type: 'moo' });
+    if (type === 'cow') { this.events.push({ type: 'moo' }); this.trampledThisRun = 0; }
     this.phase = 'flying';
     this.turnStart = this.time;
     this.quietFor = 0;
@@ -405,7 +410,8 @@ export class Game {
           if (e?.material === 'rock') rockAhead = Math.min(rockAhead, point.x - front);
           return -1;
         });
-        if (rockAhead < 0.3 || p.x > this.level.width + 6 || t > 6) { h.facing = -1; go('leave', -COW.speed * 2); }
+        if (rockAhead < 0.3 || p.x > this.level.width + 6 || t > TRAMPLE.maxRun) { h.facing = -1; go('leave', -COW.speed * 2); }
+        else this.trample(front);
       }
     }
     if (h.act === 'leave' && p.x < -14) {
@@ -413,6 +419,23 @@ export class Game {
       h.dead = true;
       this.world.destroyBody(b);
       this.activeHelper = null;
+    }
+  }
+
+  // The longhorn runs right over the turkeys she reaches and throws them over her back.
+  private trample(front: number) {
+    for (const e of this.ents.values()) {
+      if (this.trampledThisRun >= TRAMPLE.maxTurkeys) return;
+      if (e.dead || e.trampled || e.kind !== 'turkey') continue;
+      const p = e.body.getPosition();
+      if (p.y - e.h / 2 > TRAMPLE.reach || p.x - e.w / 2 > front + TRAMPLE.ahead || p.x + e.w / 2 < front - 1.5) continue;
+      e.trampled = true;
+      this.trampledThisRun++;
+      e.hp = 0;
+      e.hurtAt = this.time;
+      e.body.setLinearVelocity(Vec2(-3 - Math.random() * 3, 9 + Math.random() * 4));
+      e.body.setAngularVelocity((Math.random() - 0.5) * 20);
+      this.events.push({ type: 'trample', x: p.x, y: p.y });
     }
   }
 
