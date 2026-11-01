@@ -23,7 +23,9 @@ Dave, Martin, Kevin, Elliot and Bob have built forts on Wallace's farm. Load the
   saved only in that browser on that device (never uploaded), so they are there next time. The bin button removes them.
 - **Ranger** the Great Pyrenees lives between the catapult and the fort. He lies about, rolls over,
   and now and then wanders to a new spot for a sniff.
-- **Ranger's Sky Paw (once per level):** tap the Ranger button, then tap the farm. He howls, and a giant
+- **Ranger's Sky Paw (at most once per level):** Ranger only wakes up now and then. He is never awake for the
+  first shot; after that there is a 30% chance after each shot. When he is, the Ranger button appears for that turn
+  only, so use it or lose it. Tap the Ranger button, then tap the farm. He howls, and a giant
   magic paw stomps down from the sky on that spot.
 - Knock out every turkey to clear the level. Unused ammo is worth 10,000 points each.
 - Ten levels, up to three stars each. Each level unlocks when you beat the one before it.

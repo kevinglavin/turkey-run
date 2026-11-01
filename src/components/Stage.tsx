@@ -609,7 +609,7 @@ function LevelView({ index, interactive }: { index: number; interactive: boolean
     }
 
     if (game.version !== version) setVersion(game.version);
-    if (interactive) store.sync({ score: game.score, ammo: [...game.ammo], phase: game.phase, ready: game.ready, turkeysLeft: game.turkeysLeft, helperUsed: game.helperUsed, pawUsed: game.pawUsed });
+    if (interactive) store.sync({ score: game.score, ammo: [...game.ammo], phase: game.phase, ready: game.ready, turkeysLeft: game.turkeysLeft, helperUsed: game.helperUsed, pawUsed: game.pawUsed, pawReady: game.pawReady });
 
     // ---- camera ----
     const c = camera as OrthographicCamera;

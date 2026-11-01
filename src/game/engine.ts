@@ -38,7 +38,12 @@ const DONKEY = { w: 1.7, h: 1.4, speed: 8, kickRange: 4.5, kickDamage: 34 };
 const COW = { w: 2.6, h: 1.6, speed: 7, damageMult: 1.4 };
 const YAWN = { delay: 1.3, radius: 4.5, damage: 60 };
 // The Red Baron's strafing run: flies in from the left, dives over the fort firing, climbs away.
-const BARON = { speed: 15, strafeSpeed: 11, startY: 10, clearance: 2.2, fireEvery: 0.07, bulletSpeed: 32, gunAngle: -1.2 };
+// Slowed down so the run is easier to watch; it fires half as often so the fort takes about the same damage.
+const BARON = { speed: 8, strafeSpeed: 5.5, startY: 10, clearance: 2.2, fireEvery: 0.14, bulletSpeed: 32, gunAngle: -1.2 };
+// How far ahead of the plane the bullets land, per unit of height (tuned at 0.9 for the old speed of 11).
+const BARON_LEAD = 0.9 * (Math.cos(BARON.gunAngle) * BARON.bulletSpeed + BARON.strafeSpeed) / (Math.cos(BARON.gunAngle) * BARON.bulletSpeed + 11);
+// Ranger only turns up now and then: never for the first shot, then this chance after each shot, for one turn only.
+const PAW_CHANCE = 0.3;
 
 export const MATERIALS: Record<Material, { density: number; friction: number; restitution: number; hp: number; points: number }> = {
   wood: { density: 0.8, friction: 0.7, restitution: 0.05, hp: 70, points: 500 },
@@ -122,6 +127,7 @@ export class Game {
   abilityUsed = false;
   helperUsed = false;
   pawUsed = false;
+  pawReady = false; // Ranger is awake and offering his paw this turn
   activeHelper: Ent | null = null;
   private pendingGrab: Ent | null = null;
 
@@ -303,10 +309,11 @@ export class Game {
     return true;
   }
 
-  // Ranger's magic, once per level: a giant paw stomps down from the sky at x.
+  // Ranger's magic, at most once per level and only on a turn when he is awake: a giant paw stomps down from the sky at x.
   magicPaw(x: number) {
-    if (this.phase !== 'aiming' || !this.ready || this.pawUsed) return false;
+    if (this.phase !== 'aiming' || !this.ready || this.pawUsed || !this.pawReady) return false;
     this.pawUsed = true;
+    this.pawReady = false;
     const paw = this.spawnShot('paw', x, PAW_DROP.height, 0, -PAW_DROP.speed);
     paw.body.setAngularDamping(5);
     this.activeShot = paw;
@@ -368,7 +375,7 @@ export class Game {
       const { left, top } = this.fortBounds();
       const cruiseY = Math.max(5, top + BARON.clearance);
       // Bullets angle down and forward, so they land about this far ahead of the plane.
-      const lead = cruiseY * 0.9;
+      const lead = cruiseY * BARON_LEAD;
       const strafing = p.x > left - lead - 2 && p.x < this.level.width - lead + 1;
       const climbing = p.x >= this.level.width - lead + 1;
       const targetY = climbing ? 16 : p.x > left - lead - 8 ? cruiseY : BARON.startY;
@@ -554,6 +561,7 @@ export class Game {
       this.events.push({ type: 'end', won: false });
     } else {
       this.phase = 'aiming';
+      this.pawReady = !this.pawUsed && Math.random() < PAW_CHANCE;
     }
   }
 
