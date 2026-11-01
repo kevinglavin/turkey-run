@@ -17,7 +17,7 @@ export type HelperType = 'donkey' | 'cow' | 'sloth';
 
 export const HELPERS: Record<HelperType, { label: string; tip: string }> = {
   donkey: { label: 'Donkey', tip: 'Trots up to the fort, turns around, and bucks it.' },
-  cow: { label: 'Longhorn', tip: 'Stampedes through the fort and tramples every turkey in her path.' },
+  cow: { label: 'Longhorn', tip: 'Stampedes through the fort and tramples the first turkey she reaches.' },
   sloth: { label: 'Red Baron Sloth', tip: 'Roars in on his red triplane and strafes the fort with his machine guns.' },
 };
 
@@ -35,9 +35,9 @@ export const AMMO: Record<AmmoType, { r: number; density: number; restitution: n
 const PAW_DROP = { height: 15, speed: 22 };
 
 const DONKEY = { w: 1.7, h: 1.4, speed: 8, kickRange: 4.5, kickDamage: 34 };
-const COW = { w: 2.6, h: 1.6, speed: 9, damageMult: 1.4 };
+const COW = { w: 2.6, h: 1.6, speed: 7, damageMult: 1.4 };
 // The longhorn's stampede: turkeys she reaches (up to maxTurkeys per run) are run right over and sent flying.
-const TRAMPLE = { reach: 3.2, ahead: 0.7, maxRun: 8, maxTurkeys: 2 };
+const TRAMPLE = { reach: 3.2, ahead: 0.7, maxRun: 6, maxTurkeys: 1 };
 const YAWN = { delay: 1.3, radius: 4.5, damage: 60 };
 // The Red Baron's strafing run: flies in from the left, dives over the fort firing, climbs away.
 // Slowed down so the run is easier to watch; it fires half as often so the fort takes about the same damage.
@@ -422,7 +422,7 @@ export class Game {
     }
   }
 
-  // The longhorn runs right over the turkeys she reaches and throws them over her back.
+  // The longhorn runs right over the first turkey she reaches and throws them over her back.
   private trample(front: number) {
     for (const e of this.ents.values()) {
       if (this.trampledThisRun >= TRAMPLE.maxTurkeys) return;
