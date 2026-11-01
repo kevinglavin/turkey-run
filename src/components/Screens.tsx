@@ -132,6 +132,7 @@ function Hud() {
   const helperUsed = useStore(s => s.helperUsed);
   const [picking, setPicking] = useState(false);
   const pawUsed = useStore(s => s.pawUsed);
+  const pawReady = useStore(s => s.pawReady);
   const [targeting, setTargeting] = useState(false);
   const level = LEVELS[levelIndex];
   const [introDone, setIntroDone] = useState(false);
@@ -145,8 +146,8 @@ function Hud() {
   useEffect(() => { if (phase === 'flying') setAimedOnce(true); }, [phase]);
   useEffect(() => { setPicking(false); setTargeting(false); live.targeting = false; }, [attempt, levelIndex]);
   // The stage clears live.targeting once the paw is placed; mirror that here.
-  useEffect(() => { if (pawUsed || phase !== 'aiming') { setTargeting(false); live.targeting = false; } }, [pawUsed, phase]);
-  const canPaw = phase === 'aiming' && ready && !pawUsed && !result;
+  useEffect(() => { if (pawUsed || !pawReady || phase !== 'aiming') { setTargeting(false); live.targeting = false; } }, [pawUsed, pawReady, phase]);
+  const canPaw = phase === 'aiming' && ready && pawReady && !pawUsed && !result;
   const aimPaw = () => {
     sfx.click();
     const on = !targeting;
@@ -192,6 +193,11 @@ function Hud() {
             </div>
           )}
           {canTap && <SpecialHint />}
+          {canPaw && !targeting && (
+            <div className="bg-sky-700/90 rounded-full px-5 py-2 text-sm font-black text-center">
+              Ranger is awake! His paw is yours for this turn only.
+            </div>
+          )}
           {targeting && (
             <div className="bg-sky-600/90 rounded-full px-5 py-2 text-sm font-black uppercase animate-pulse text-center">
               Tap the farm where Ranger's magic paw should land
@@ -227,7 +233,7 @@ function Hud() {
           )}
           <div className="flex gap-2">
             {canPaw && (
-              <button onClick={aimPaw} title="Ranger's Sky Paw: once per level, a giant magic paw stomps where you tap"
+              <button onClick={aimPaw} title="Ranger's Sky Paw: only when Ranger wakes up, and only for that turn. A giant magic paw stomps where you tap"
                 className={`${btn} pointer-events-auto h-12 px-4 rounded-full border-4 font-black uppercase text-sm flex items-center gap-1 shadow-lg ${
                   targeting ? 'bg-sky-500 border-white' : 'bg-sky-700 border-sky-200'}`}>
                 <span className="text-lg">🐾</span> {targeting ? 'Cancel' : 'Ranger'}
